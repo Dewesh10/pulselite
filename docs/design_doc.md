@@ -2,20 +2,21 @@
 **Student:** Dewesh | **Problem:** H3 | **Date:** 24 June 2026
 
 ## What I'm building
-A real-time Reddit post monitor that tracks volume, sentiment,
+A real-time Hacker News post monitor that tracks volume, sentiment,
 and top words — with an anomaly alert when volume spikes 3x above normal.
 
 ## Data source
-Reddit public API via PRAW library. Subreddit: r/india
-Chosen because it is free, public, and has consistent traffic.
+Hacker News public API (no API key required).
+Free, stable, real-time tech posts with scores and comments.
+Chosen because it is free, requires no auth, and works reliably from any region.
 
 ## Architecture
-Reddit API → Kafka → PySpark → DuckDB → Streamlit
+Hacker News API → Kafka → PySpark → DuckDB → Streamlit
 
 ## Tech stack
 | Component | Choice | Why |
 |-----------|--------|-----|
-| Data source | Reddit (PRAW) | Free, public, no rate limit issues |
+| Data source | Hacker News API | Free, no auth, reliable, real-time |
 | Message queue | Kafka (Docker) | Industry standard |
 | Processing | PySpark Structured Streaming | Required by problem statement |
 | Storage | DuckDB | Lightweight, no server needed |
@@ -29,5 +30,5 @@ Reddit API → Kafka → PySpark → DuckDB → Streamlit
 - Red alert marker when volume is 3x rolling average (mini-extension)
 
 ## Known risks
-- Reddit API rate limits if polling too fast — fix: poll every 10 seconds
+- HN API requires one request per post — fix: fetch top 25 only per poll
 - Kafka setup complexity — fix: use bitnami Docker image
