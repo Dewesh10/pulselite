@@ -1,31 +1,46 @@
-# pulselite
-
-
 # PulseLite 🔴
-> Real-time Reddit pulse tracker — know what the internet is talking about, the moment it happens.
 
+> Real-time Hacker News pulse tracker — know what tech is talking about, the moment it happens.
 ## What it does
-PulseLite monitors Reddit in real time and shows:
-- 📈 Post volume per minute (live updating)
-- 😊 Sentiment — are people positive, negative, or neutral?
-- 🔤 Top 10 words trending right now
-- 🚨 Anomaly alerts when volume suddenly spikes 3x above normal
 
+PulseLite monitors Hacker News in real time and shows:
+
+- 📈 Post volume per minute (live updating)
+
+- 😊 Sentiment — are people positive, negative, or neutral?
+
+- 🔤 Top 10 words trending right now
+
+- 🚨 Anomaly alerts when volume suddenly spikes 3x above normal
 ## Architecture
 
-
+Hacker News API → Kafka → Processor + VADER → DuckDB → Streamlit Dashboard
 ## Tech Stack
-| Component | Tool |
-|-----------|------|
-| Data source | Reddit API (PRAW) |
-| Message queue | Apache Kafka (Docker) |
-| Stream processor | PySpark Structured Streaming |
-| Storage | DuckDB |
-| Dashboard | Streamlit + Plotly |
-| Containers | Docker Compose |
+ComponentToolWhyData sourceHacker News APIFree, no auth, real-timeMessage queueApache Kafka (Docker)Industry standard, decoupled pipelineStream processorPython + confluent-kafkaReads from Kafka, runs NLPSentiment analysisVADERLightweight, no model training neededStorageDuckDBFast, lightweight, no server neededDashboardStreamlit + PlotlyPython-native, easy auto-refreshContainersDocker ComposeRuns Kafka without manual install
+## How to Run Locally
 
-## Status
-🚧 Week 1 — Setting up pipeline foundation
+Start Kafka: docker-compose up -d
+Activate venv: venv\Scripts\activate
+Terminal 1 — Producer: python producer/reddit_producer.py
+Terminal 2 — Processor: python processor/spark_processor.py
+Terminal 3 — Dashboard: streamlit run dashboard/app.py
 
+## Pipeline Status
+
+- ✅ Data source — Hacker News API
+
+- ✅ Kafka message queue — running in Docker
+
+- ✅ Stream processor — VADER sentiment analysis
+
+- ✅ DuckDB storage
+
+- ⬜ Streamlit dashboard — in progress
+## ADRs
+
+- ADR 001 — Data Source Selection: docs/adr/adr-001-data-source.md
+
+- ADR 002 — Message Queue Selection: docs/adr/adr-002-message-queue.md
 ## Author
+
 Dewesh | B.Tech CSE-AIDE | Internship 2026
