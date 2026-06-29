@@ -2,7 +2,7 @@ import requests
 import json
 import time
 from datetime import datetime
-from kafka import KafkaProducer
+from confluent_kafka import Producer
 
 SOURCE = "Hacker News"
 NEW_STORIES_URL = "https://hacker-news.firebaseio.com/v0/newstories.json"
@@ -10,10 +10,7 @@ ITEM_URL = "https://hacker-news.firebaseio.com/v0/item/{}.json"
 KAFKA_TOPIC = "hn-posts"
 KAFKA_SERVER = "localhost:9092"
 
-producer = KafkaProducer(
-    bootstrap_servers=KAFKA_SERVER,
-    value_serializer=lambda v: json.dumps(v).encode("utf-8")
-)
+producer = Producer({"bootstrap.servers": KAFKA_SERVER})
 
 def fetch_posts(limit=25):
     story_ids = requests.get(NEW_STORIES_URL).json()[:limit]
@@ -42,7 +39,7 @@ def main():
                 "comments": post.get("descendants", 0),
                 "timestamp": datetime.now().isoformat()
             }
-            producer.send(KAFKA_TOPIC, value=message)
+            producer.produce(KAFKA_TOPIC, value=json.dumps(message).encode("utf-8"))
             print(f"  ✓ Sent: {post['title'][:60]}")
 
         producer.flush()
