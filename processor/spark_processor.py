@@ -12,35 +12,38 @@ DB_PATH = "pulselite.db"
 
 # Setup
 analyzer = SentimentIntensityAnalyzer()
-con = duckdb.connect(DB_PATH)
+#con = duckdb.connect(DB_PATH)
 
 # Create tables
-con.execute("""
-    CREATE TABLE IF NOT EXISTS posts (
-        id INTEGER,
-        title TEXT,
-        score INTEGER,
-        comments INTEGER,
-        sentiment FLOAT,
-        sentiment_label TEXT,
-        timestamp TEXT
-    )
-""")
+def setup_tables():
+    con = duckdb.connect(DB_PATH)
+    con.execute("""
+        CREATE TABLE IF NOT EXISTS posts (
+            id INTEGER,
+            title TEXT,
+            score INTEGER,
+            comments INTEGER,
+            sentiment FLOAT,
+            sentiment_label TEXT,
+            timestamp TEXT
+        )
+    """)
+    con.execute("""
+        CREATE TABLE IF NOT EXISTS volume_per_minute (
+            minute TEXT,
+            post_count INTEGER
+        )
+    """)
+    con.execute("""
+        CREATE TABLE IF NOT EXISTS anomaly_alerts (
+            timestamp TEXT,
+            post_count INTEGER,
+            rolling_avg FLOAT
+        )
+    """)
+    con.close()
 
-con.execute("""
-    CREATE TABLE IF NOT EXISTS volume_per_minute (
-        minute TEXT,
-        post_count INTEGER
-    )
-""")
-
-con.execute("""
-    CREATE TABLE IF NOT EXISTS anomaly_alerts (
-        timestamp TEXT,
-        post_count INTEGER,
-        rolling_avg FLOAT
-    )
-""")
+setup_tables()
 
 def get_sentiment(text):
     score = analyzer.polarity_scores(text)["compound"]
@@ -52,12 +55,14 @@ def get_sentiment(text):
         return score, "neutral"
 
 def check_anomaly(current_count):
+    con = duckdb.connect(DB_PATH)
     rows = con.execute("""
         SELECT post_count FROM volume_per_minute
         ORDER BY minute DESC LIMIT 5
     """).fetchall()
     
     if len(rows) < 3:
+        con.close()
         return
     
     avg = sum(r[0] for r in rows) / len(rows)
@@ -68,6 +73,7 @@ def check_anomaly(current_count):
             [now, current_count, avg]
         )
         print(f"🚨 ANOMALY DETECTED! Count: {current_count}, Avg: {avg:.1f}")
+    con.close()
 
 def main():
     print("PulseLite processor started")
@@ -92,6 +98,8 @@ def main():
         score, label = get_sentiment(title)
 
         # Save post
+        # Save post
+        con = duckdb.connect(DB_PATH)
         con.execute(
             "INSERT INTO posts VALUES (?, ?, ?, ?, ?, ?, ?)",
             [post.get("id"), title, post.get("score", 0),
@@ -105,6 +113,7 @@ def main():
 
         con.execute("DELETE FROM volume_per_minute WHERE minute = ?", [minute])
         con.execute("INSERT INTO volume_per_minute VALUES (?, ?)", [minute, count])
+        con.close()
 
         check_anomaly(count)
 
