@@ -1624,6 +1624,9 @@ def _render_live_dashboard() -> None:
 
 
 
+# Clock refreshes every second, data refreshes on the user-set interval
+st_autorefresh(interval=1000, key="pulselite_clock")
+
 if st.session_state.auto_refresh:
     st_autorefresh(
         interval=st.session_state.refresh_seconds * 1000,
