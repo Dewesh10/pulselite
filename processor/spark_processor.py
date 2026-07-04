@@ -1,10 +1,12 @@
 import json
 import csv
 import os
+import numpy as np
 import duckdb
 from confluent_kafka import Consumer
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 from datetime import datetime
+from sentence_transformers import SentenceTransformer
 
 KAFKA_TOPIC = "hn-posts"
 KAFKA_SERVER = "localhost:9092"
@@ -14,6 +16,7 @@ CSV_VOLUME = "data_volume.csv"
 CSV_ALERTS = "data_alerts.csv"
 
 analyzer = SentimentIntensityAnalyzer()
+embedder = SentenceTransformer("all-MiniLM-L6-v2")
 seen_ids = set()
 
 
@@ -37,6 +40,9 @@ def init_csvs():
     if not os.path.exists(CSV_ALERTS):
         with open(CSV_ALERTS, "w", newline="", encoding="utf-8") as f:
             csv.writer(f).writerow(["timestamp", "post_count", "rolling_avg"])
+    if not os.path.exists("data_drift.csv"):
+        with open("data_drift.csv", "w", newline="", encoding="utf-8") as f:
+            csv.writer(f).writerow(["timestamp", "drift_score", "sample_title"])
 
 
 def save_post(post_id, title, hn_score, comments, sentiment, label, timestamp):
@@ -89,6 +95,33 @@ def check_anomaly(minute_bucket, current_minute, current_count):
             csv.writer(f).writerow([now, current_count, round(avg, 2)])
         print(f"🚨 ANOMALY DETECTED! Count: {current_count}, Avg: {avg:.1f}")
 
+def compute_drift(current_window_titles, previous_window_titles, sample_title):
+    """
+    Compute cosine distance between embeddings of current and previous
+    5-minute windows. High distance = topic has drifted.
+    """
+    if len(current_window_titles) < 3 or len(previous_window_titles) < 3:
+        return
+
+    current_embeddings = embedder.encode(current_window_titles)
+    previous_embeddings = embedder.encode(previous_window_titles)
+
+    current_centroid = np.mean(current_embeddings, axis=0)
+    previous_centroid = np.mean(previous_embeddings, axis=0)
+
+    # Cosine distance
+    similarity = np.dot(current_centroid, previous_centroid) / (
+        np.linalg.norm(current_centroid) * np.linalg.norm(previous_centroid) + 1e-10
+    )
+    drift_score = round(float(1 - similarity), 4)
+
+    now = datetime.now().isoformat()
+    with open("data_drift.csv", "a", newline="", encoding="utf-8") as f:
+        csv.writer(f).writerow([now, drift_score, sample_title[:80]])
+
+    if drift_score > 0.3:
+        print(f"🌊 TOPIC DRIFT DETECTED! Score: {drift_score:.3f}")
+
 
 def main():
     print("PulseLite processor started")
@@ -105,6 +138,7 @@ def main():
     consumer.subscribe([KAFKA_TOPIC])
 
     minute_bucket = {}
+    minute_titles = {}
 
     while True:
         msg = consumer.poll(1.0)
@@ -124,6 +158,22 @@ def main():
 
         update_volume(minute_bucket, minute)
         check_anomaly(minute_bucket, minute, count)
+
+        # Track titles per minute window for drift detection
+        if minute not in minute_titles:
+            minute_titles[minute] = []
+        minute_titles[minute].append(title)
+
+        # Compute drift every minute when we have 2 windows
+        all_minutes = sorted(minute_titles.keys())
+        if len(all_minutes) >= 2:
+            current_min = all_minutes[-1]
+            previous_min = all_minutes[-2]
+            compute_drift(
+                minute_titles[current_min],
+                minute_titles[previous_min],
+                title
+            )
 
         print(f"  [{label.upper()}] {title[:55]} (score: {score:.2f})")
 

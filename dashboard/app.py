@@ -1488,6 +1488,25 @@ def _render_live_dashboard() -> None:
     # --------------------------------------------------------------------------
     # TAB 4 — Anomalies
     # --------------------------------------------------------------------------
+        st.markdown('<br>', unsafe_allow_html=True)
+        st.info('Drift detection: accumulating data - check back in 2 minutes.')
+
+        st.markdown('<br>', unsafe_allow_html=True)
+        st.markdown(section_title('🌊', 'Topic Drift Score', 'Cosine distance between consecutive 5-minute embedding centroids'), unsafe_allow_html=True)
+        try:
+            import pandas as _pd
+            _drift = _pd.read_csv('data_drift.csv')
+            if len(_drift) > 1:
+                _drift['ts'] = _pd.to_datetime(_drift['timestamp'], errors='coerce')
+                _fig_d = go.Figure()
+                _fig_d.add_trace(go.Scatter(x=_drift['ts'], y=_drift['drift_score'], mode='lines+markers', line=dict(color=COLORS['brand_mid'], width=2.5), fill='tozeroy', fillcolor='rgba(139,92,246,0.1)'))
+                _fig_d.add_hline(y=0.3, line_dash='dot', line_color=COLORS['negative'], annotation_text='Threshold 0.3')
+                apply_chart_theme(_fig_d, height=280)
+                st.plotly_chart(_fig_d, use_container_width=True)
+            else:
+                st.info('Accumulating drift data...')
+        except Exception as _e:
+            st.info('Drift detection warming up...')
     with tab_anomalies:
         col_e, col_f = st.columns([1, 1])
 
