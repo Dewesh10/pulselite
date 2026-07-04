@@ -42,7 +42,7 @@ def init_csvs():
             csv.writer(f).writerow(["timestamp", "post_count", "rolling_avg"])
     if not os.path.exists("data_drift.csv"):
         with open("data_drift.csv", "w", newline="", encoding="utf-8") as f:
-            csv.writer(f).writerow(["timestamp", "drift_score", "sample_title"])
+            csv.writer(f).writerow(["timestamp", "drift_score", "sample_title", "before_titles", "after_titles"])
 
 
 def save_post(post_id, title, hn_score, comments, sentiment, label, timestamp):
@@ -96,10 +96,6 @@ def check_anomaly(minute_bucket, current_minute, current_count):
         print(f"🚨 ANOMALY DETECTED! Count: {current_count}, Avg: {avg:.1f}")
 
 def compute_drift(current_window_titles, previous_window_titles, sample_title):
-    """
-    Compute cosine distance between embeddings of current and previous
-    5-minute windows. High distance = topic has drifted.
-    """
     if len(current_window_titles) < 3 or len(previous_window_titles) < 3:
         return
 
@@ -109,15 +105,18 @@ def compute_drift(current_window_titles, previous_window_titles, sample_title):
     current_centroid = np.mean(current_embeddings, axis=0)
     previous_centroid = np.mean(previous_embeddings, axis=0)
 
-    # Cosine distance
     similarity = np.dot(current_centroid, previous_centroid) / (
         np.linalg.norm(current_centroid) * np.linalg.norm(previous_centroid) + 1e-10
     )
     drift_score = round(float(1 - similarity), 4)
 
+    # Save top 3 titles from each window for before/after comparison
+    before_titles = " | ".join(previous_window_titles[:3])
+    after_titles = " | ".join(current_window_titles[:3])
+
     now = datetime.now().isoformat()
     with open("data_drift.csv", "a", newline="", encoding="utf-8") as f:
-        csv.writer(f).writerow([now, drift_score, sample_title[:80]])
+        csv.writer(f).writerow([now, drift_score, sample_title[:80], before_titles[:200], after_titles[:200]])
 
     if drift_score > 0.3:
         print(f"🌊 TOPIC DRIFT DETECTED! Score: {drift_score:.3f}")
