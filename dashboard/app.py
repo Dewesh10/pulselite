@@ -59,6 +59,7 @@ def resolve_db_path() -> str:
 
 
 DB_PATH = resolve_db_path()
+DASH_DB = DB_PATH
 
 # --------------------------------------------------------------------------
 # App metadata
@@ -165,126 +166,104 @@ def db_exists() -> bool:
     return os.path.exists(DB_PATH)
 
 
-def _connect() -> duckdb.DuckDBPyConnection:
-    return duckdb.connect(DB_PATH, read_only=True)
+CSV_POSTS = "data_posts.csv"
+CSV_VOLUME = "data_volume.csv"
+CSV_ALERTS = "data_alerts.csv"
 
-
-def _safe_query(sql: str, params: list | None = None) -> pd.DataFrame:
-    """Run a query, returning an empty DataFrame instead of raising if the
-    table doesn't exist yet or the file is locked/mid-write."""
-    if not db_exists():
+@st.cache_data(ttl=1, show_spinner=False)
+def load_posts(limit: int = 1000) -> pd.DataFrame:
+    if not os.path.exists(CSV_POSTS):
         return pd.DataFrame()
     try:
-        con = _connect()
-        try:
-            df = con.execute(sql, params or []).df()
-        finally:
-            con.close()
-        return df
+        df = pd.read_csv(CSV_POSTS, encoding="utf-8")
+        if df.empty:
+            return df
+        df["timestamp_dt"] = pd.to_datetime(df["timestamp"], errors="coerce")
+        df["score"] = pd.to_numeric(df["score"], errors="coerce").fillna(0)
+        df["comments"] = pd.to_numeric(df["comments"], errors="coerce").fillna(0)
+        df["sentiment"] = pd.to_numeric(df["sentiment"], errors="coerce").fillna(0.0)
+        df["sentiment_label"] = df["sentiment_label"].fillna("neutral")
+        df["engagement"] = df["score"] + df["comments"] * 2
+        return df.tail(limit)
     except Exception:
         return pd.DataFrame()
 
 
-# --------------------------------------------------------------------------
-# Cached readers
-# --------------------------------------------------------------------------
-
-@st.cache_data(ttl=1, show_spinner=False)
-def load_posts(limit: int = 1000) -> pd.DataFrame:
-    df = _safe_query(
-        """
-        SELECT id, title, score, comments, sentiment, sentiment_label, timestamp
-        FROM posts
-        ORDER BY timestamp DESC
-        LIMIT ?
-        """,
-        [limit],
-    )
-    if df.empty:
-        return df
-    df["timestamp_dt"] = pd.to_datetime(df["timestamp"], errors="coerce")
-    df["score"] = pd.to_numeric(df["score"], errors="coerce").fillna(0)
-    df["comments"] = pd.to_numeric(df["comments"], errors="coerce").fillna(0)
-    df["sentiment"] = pd.to_numeric(df["sentiment"], errors="coerce").fillna(0.0)
-    df["sentiment_label"] = df["sentiment_label"].fillna("neutral")
-    df["engagement"] = df["score"] + df["comments"] * 2
-    return df
-
-
 @st.cache_data(ttl=1, show_spinner=False)
 def load_volume(limit_minutes: int = 60) -> pd.DataFrame:
-    df = _safe_query(
-        """
-        SELECT minute, post_count
-        FROM volume_per_minute
-        ORDER BY minute ASC
-        LIMIT ?
-        """,
-        [limit_minutes],
-    )
-    if df.empty:
-        return df
-    df["minute_dt"] = pd.to_datetime(df["minute"], errors="coerce", format="%Y-%m-%d %H:%M")
-    df["post_count"] = pd.to_numeric(df["post_count"], errors="coerce").fillna(0)
-    return df
+    if not os.path.exists(CSV_VOLUME):
+        return pd.DataFrame()
+    try:
+        df = pd.read_csv(CSV_VOLUME, encoding="utf-8")
+        if df.empty:
+            return df
+        df["minute_dt"] = pd.to_datetime(df["minute"], errors="coerce", format="%Y-%m-%d %H:%M")
+        df["post_count"] = pd.to_numeric(df["post_count"], errors="coerce").fillna(0)
+        return df.tail(limit_minutes)
+    except Exception:
+        return pd.DataFrame()
 
 
 @st.cache_data(ttl=1, show_spinner=False)
 def load_alerts(limit: int = 25) -> pd.DataFrame:
-    df = _safe_query(
-        """
-        SELECT timestamp, post_count, rolling_avg
-        FROM anomaly_alerts
-        ORDER BY timestamp DESC
-        LIMIT ?
-        """,
-        [limit],
-    )
-    if df.empty:
-        return df
-    df["timestamp_dt"] = pd.to_datetime(df["timestamp"], errors="coerce")
-    df["post_count"] = pd.to_numeric(df["post_count"], errors="coerce").fillna(0)
-    df["rolling_avg"] = pd.to_numeric(df["rolling_avg"], errors="coerce").fillna(0.0)
-    return df
+    if not os.path.exists(CSV_ALERTS):
+        return pd.DataFrame()
+    try:
+        df = pd.read_csv(CSV_ALERTS, encoding="utf-8")
+        if df.empty:
+            return df
+        df["timestamp_dt"] = pd.to_datetime(df["timestamp"], errors="coerce")
+        df["post_count"] = pd.to_numeric(df["post_count"], errors="coerce").fillna(0)
+        df["rolling_avg"] = pd.to_numeric(df["rolling_avg"], errors="coerce").fillna(0.0)
+        return df.tail(limit)
+    except Exception:
+        return pd.DataFrame()
 
 
 @st.cache_data(ttl=1, show_spinner=False)
 def load_sentiment_summary() -> pd.DataFrame:
-    return _safe_query(
-        """
-        SELECT sentiment_label, COUNT(*) AS count
-        FROM posts
-        GROUP BY sentiment_label
-        """
-    )
+    df = load_posts()
+    if df.empty:
+        return pd.DataFrame()
+    return df.groupby("sentiment_label").size().reset_index(name="count")
 
 
 @st.cache_data(ttl=1, show_spinner=False)
 def load_table_counts() -> dict:
-    counts = {}
-    for table in ("posts", "volume_per_minute", "anomaly_alerts"):
-        df = _safe_query(f"SELECT COUNT(*) AS c FROM {table}")
-        counts[table] = int(df["c"].iloc[0]) if not df.empty else 0
-    return counts
+    posts = load_posts()
+    volume = load_volume()
+    alerts = load_alerts()
+    return {
+        "posts": len(posts),
+        "volume_per_minute": len(volume),
+        "anomaly_alerts": len(alerts)
+    }
 
 
 @st.cache_data(ttl=1, show_spinner=False)
 def load_null_quality() -> dict:
-    """Lightweight data-quality snapshot: how many rows are missing key
-    fields. Useful on the Pipeline Health tab."""
-    df = _safe_query(
-        """
-        SELECT
-            COUNT(*) AS total,
-            SUM(CASE WHEN title IS NULL OR title = '' THEN 1 ELSE 0 END) AS missing_title,
-            SUM(CASE WHEN sentiment_label IS NULL THEN 1 ELSE 0 END) AS missing_sentiment,
-            SUM(CASE WHEN score IS NULL THEN 1 ELSE 0 END) AS missing_score
-        FROM posts
-        """
-    )
+    df = load_posts()
     if df.empty:
         return {"total": 0, "missing_title": 0, "missing_sentiment": 0, "missing_score": 0}
-    return df.iloc[0].to_dict()
+    return {
+        "total": len(df),
+        "missing_title": int(df["title"].isna().sum()),
+        "missing_sentiment": int(df["sentiment_label"].isna().sum()),
+        "missing_score": int(df["score"].isna().sum())
+    }
+
+
+def clear_all_caches() -> None:
+    load_posts.clear()
+    load_volume.clear()
+    load_alerts.clear()
+    load_sentiment_summary.clear()
+    load_table_counts.clear()
+    load_null_quality.clear()
+
+
+def db_exists() -> bool:
+    return os.path.exists(CSV_POSTS)
 
 
 def clear_all_caches() -> None:

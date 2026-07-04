@@ -1,49 +1,21 @@
 import json
+import csv
+import os
 import duckdb
 from confluent_kafka import Consumer
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 from datetime import datetime
-from collections import Counter
-import re
 
 KAFKA_TOPIC = "hn-posts"
 KAFKA_SERVER = "localhost:9092"
 DB_PATH = "pulselite.db"
+CSV_POSTS = "data_posts.csv"
+CSV_VOLUME = "data_volume.csv"
+CSV_ALERTS = "data_alerts.csv"
 
-# Setup
 analyzer = SentimentIntensityAnalyzer()
-#con = duckdb.connect(DB_PATH)
+seen_ids = set()
 
-# Create tables
-def setup_tables():
-    con = duckdb.connect(DB_PATH)
-    con.execute("""
-        CREATE TABLE IF NOT EXISTS posts (
-            id INTEGER,
-            title TEXT,
-            score INTEGER,
-            comments INTEGER,
-            sentiment FLOAT,
-            sentiment_label TEXT,
-            timestamp TEXT
-        )
-    """)
-    con.execute("""
-        CREATE TABLE IF NOT EXISTS volume_per_minute (
-            minute TEXT,
-            post_count INTEGER
-        )
-    """)
-    con.execute("""
-        CREATE TABLE IF NOT EXISTS anomaly_alerts (
-            timestamp TEXT,
-            post_count INTEGER,
-            rolling_avg FLOAT
-        )
-    """)
-    con.close()
-
-setup_tables()
 
 def get_sentiment(text):
     score = analyzer.polarity_scores(text)["compound"]
@@ -54,31 +26,76 @@ def get_sentiment(text):
     else:
         return score, "neutral"
 
-def check_anomaly(current_count):
-    con = duckdb.connect(DB_PATH)
-    rows = con.execute("""
-        SELECT post_count FROM volume_per_minute
-        ORDER BY minute DESC LIMIT 5
-    """).fetchall()
-    
-    if len(rows) < 3:
-        con.close()
+
+def init_csvs():
+    if not os.path.exists(CSV_POSTS):
+        with open(CSV_POSTS, "w", newline="", encoding="utf-8") as f:
+            csv.writer(f).writerow(["id", "title", "score", "comments", "sentiment", "sentiment_label", "timestamp"])
+    if not os.path.exists(CSV_VOLUME):
+        with open(CSV_VOLUME, "w", newline="", encoding="utf-8") as f:
+            csv.writer(f).writerow(["minute", "post_count"])
+    if not os.path.exists(CSV_ALERTS):
+        with open(CSV_ALERTS, "w", newline="", encoding="utf-8") as f:
+            csv.writer(f).writerow(["timestamp", "post_count", "rolling_avg"])
+
+
+def save_post(post_id, title, hn_score, comments, sentiment, label, timestamp):
+    if post_id in seen_ids:
         return
-    
-    avg = sum(r[0] for r in rows) / len(rows)
+    seen_ids.add(post_id)
+    with open(CSV_POSTS, "a", newline="", encoding="utf-8") as f:
+        csv.writer(f).writerow([post_id, title, hn_score, comments, sentiment, label, timestamp])
+
+
+def update_volume(minute_bucket, minute):
+    rows = []
+    updated = False
+    if os.path.exists(CSV_VOLUME):
+        with open(CSV_VOLUME, "r", encoding="utf-8") as f:
+            reader = csv.reader(f)
+            header = next(reader)
+            for row in reader:
+                if row and row[0] == minute:
+                    rows.append([minute, minute_bucket[minute]])
+                    updated = True
+                else:
+                    rows.append(row)
+    if not updated:
+        rows.append([minute, minute_bucket[minute]])
+    with open(CSV_VOLUME, "w", newline="", encoding="utf-8") as f:
+        writer = csv.writer(f)
+        writer.writerow(["minute", "post_count"])
+        writer.writerows(rows)
+
+
+def check_anomaly(minute_bucket, current_minute, current_count):
+    counts = []
+    if os.path.exists(CSV_VOLUME):
+        with open(CSV_VOLUME, "r", encoding="utf-8") as f:
+            reader = csv.reader(f)
+            next(reader)
+            for row in reader:
+                if row and row[0] != current_minute:
+                    try:
+                        counts.append(int(row[1]))
+                    except:
+                        pass
+    if len(counts) < 3:
+        return
+    avg = sum(counts[-5:]) / len(counts[-5:])
     if current_count > 3 * avg:
         now = datetime.now().isoformat()
-        con.execute(
-            "INSERT INTO anomaly_alerts VALUES (?, ?, ?)",
-            [now, current_count, avg]
-        )
+        with open(CSV_ALERTS, "a", newline="", encoding="utf-8") as f:
+            csv.writer(f).writerow([now, current_count, round(avg, 2)])
         print(f"🚨 ANOMALY DETECTED! Count: {current_count}, Avg: {avg:.1f}")
-    con.close()
+
 
 def main():
     print("PulseLite processor started")
     print(f"Reading from Kafka topic: {KAFKA_TOPIC}")
     print("-" * 50)
+
+    init_csvs()
 
     consumer = Consumer({
         "bootstrap.servers": KAFKA_SERVER,
@@ -93,31 +110,23 @@ def main():
         msg = consumer.poll(1.0)
         if msg is None or msg.error():
             continue
+
         post = json.loads(msg.value().decode("utf-8"))
         title = post.get("title", "")
+        post_id = post.get("id")
         score, label = get_sentiment(title)
 
-        # Save post
-        # Save post
-        con = duckdb.connect(DB_PATH)
-        con.execute(
-            "INSERT INTO posts VALUES (?, ?, ?, ?, ?, ?, ?)",
-            [post.get("id"), title, post.get("score", 0),
-             post.get("comments", 0), score, label, post.get("timestamp")]
-        )
+        save_post(post_id, title, post.get("score", 0), post.get("comments", 0), score, label, post.get("timestamp"))
 
-        # Volume per minute
         minute = datetime.now().strftime("%Y-%m-%d %H:%M")
         minute_bucket[minute] = minute_bucket.get(minute, 0) + 1
         count = minute_bucket[minute]
 
-        con.execute("DELETE FROM volume_per_minute WHERE minute = ?", [minute])
-        con.execute("INSERT INTO volume_per_minute VALUES (?, ?)", [minute, count])
-        con.close()
-
-        check_anomaly(count)
+        update_volume(minute_bucket, minute)
+        check_anomaly(minute_bucket, minute, count)
 
         print(f"  [{label.upper()}] {title[:55]} (score: {score:.2f})")
+
 
 if __name__ == "__main__":
     main()
