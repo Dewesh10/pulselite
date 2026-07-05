@@ -7,3 +7,5 @@ vaderSentiment==3.3.2
 streamlit-autorefresh==1.0.1
 python-dotenv==1.0.1
 sentence-transformers==3.4.1
+fastavro==1.9.4
+confluent-kafka==2.3.0

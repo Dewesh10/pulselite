@@ -1,12 +1,14 @@
 import json
 import csv
 import os
+import struct
+import io
+import fastavro
 import numpy as np
-import duckdb
 from confluent_kafka import Consumer
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
-from datetime import datetime
 from sentence_transformers import SentenceTransformer
+from datetime import datetime
 
 KAFKA_TOPIC = "hn-posts"
 KAFKA_SERVER = "localhost:9092"
@@ -17,6 +19,25 @@ CSV_ALERTS = "data_alerts.csv"
 
 analyzer = SentimentIntensityAnalyzer()
 embedder = SentenceTransformer("all-MiniLM-L6-v2")
+# Load Avro schema for deserialization
+with open("schemas/post_v1.avsc", "r") as f:
+    SCHEMA = fastavro.parse_schema(json.load(f))
+
+
+def deserialize_avro(raw_bytes):
+    """Deserialize Confluent Avro format message."""
+    try:
+        buf = io.BytesIO(raw_bytes)
+        magic = buf.read(1)
+        if magic != b'\x00':
+            # Fall back to JSON for backward compatibility
+            return json.loads(raw_bytes.decode("utf-8"))
+        schema_id = struct.unpack('>I', buf.read(4))[0]
+        record = fastavro.schemaless_reader(buf, SCHEMA)
+        return record
+    except Exception:
+        # Fall back to JSON
+        return json.loads(raw_bytes.decode("utf-8"))
 seen_ids = set()
 
 
@@ -144,7 +165,7 @@ def main():
         if msg is None or msg.error():
             continue
 
-        post = json.loads(msg.value().decode("utf-8"))
+        post = deserialize_avro(msg.value())
         title = post.get("title", "")
         post_id = post.get("id")
         score, label = get_sentiment(title)

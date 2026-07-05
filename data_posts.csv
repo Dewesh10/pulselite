@@ -154,3 +154,30 @@ id,title,score,comments,sentiment,sentiment_label,timestamp
 48785719,Spherical Gear [video],1,0,0.0,neutral,2026-07-04T20:44:06.715741
 48785987,It's time to go back to the founding text,1,0,0.0,neutral,2026-07-04T20:45:06.891454
 48785997,Do Wavy Walls Use Fewer Bricks? I Tested It in Blender,1,0,0.0,neutral,2026-07-04T20:46:06.884806
+48786020,Positioning Without Satellites or Base Stations,1,0,0.0,neutral,2026-07-04T20:49:06.466279
+48786025,Static Types Come to the Beam – Annette Bieniusa and Guillaume Duboc [video],1,0,0.0,neutral,2026-07-04T20:50:05.558469
+48791269,Oxc (popular front-end tooling) forked my parser but removed my copyright notice,1,0,0.2263,positive,2026-07-05T10:07:19.594409
+48791266,Moby Dick Workout,2,1,-0.5106,negative,2026-07-05T10:07:19.608102
+48791256,My ASN Journey series (2024),1,1,0.0,neutral,2026-07-05T10:07:19.608102
+48791241,The Electricity: Why Google may be trying to make intelligence disappear,1,0,0.296,positive,2026-07-05T10:07:19.608102
+48791224,Reading Minds with Ultrasound: Less-Invasive Technique for Brain's Intentions (2021),1,0,0.0,neutral,2026-07-05T10:07:19.609104
+48791212,HarnessMonkey – claude mods to show hidden tokens & improve vibes!,1,1,0.4926,positive,2026-07-05T10:07:19.609104
+48791195,RTS a TypeScript-to-Native Compiler/Runtime in Rust (Cranelift JIT and AOT),1,0,0.0,neutral,2026-07-05T10:07:19.610100
+48791188,Show your hands honor for the power they bring you,1,0,0.4939,positive,2026-07-05T10:07:19.610100
+48791160,Show HN: Inches to CM converter with charts and screen size references,1,2,0.0,neutral,2026-07-05T10:07:19.611101
+48791151,Perchlorate,1,0,0.0,neutral,2026-07-05T10:07:19.612100
+48791108,Show HN: How do you guys keep your journey diaries?,1,1,0.0,neutral,2026-07-05T10:07:19.612100
+48791105,Drawbridge – Design Editor for Claude Code and Cursor,1,0,0.0,neutral,2026-07-05T10:07:19.612100
+48791101,Spotify deletes 500K Malcolm Todd streams for suspected prediction manipulation,1,0,-0.4767,negative,2026-07-05T10:07:19.614103
+48791091,President pardons 9 for Clean Air violations for 'fixing their car',9,0,0.128,positive,2026-07-05T10:07:19.615104
+48791081,Writing Blogs or News Articles? Free and Fast Word Counter -Accurate and Private,1,0,0.5106,positive,2026-07-05T10:07:19.615104
+48791048,I Accidentally Started a Small Business Three Weeks Ago,2,1,-0.34,negative,2026-07-05T10:07:19.616104
+48791040,"Sea Surface Temperature, Live",1,0,0.0,neutral,2026-07-05T10:07:19.616104
+48791013,Global earthquake detection and warning using Android phones (2025),1,0,-0.34,negative,2026-07-05T10:07:19.619105
+48790999,America Is More,1,0,0.0,neutral,2026-07-05T10:07:19.620103
+48790998,Android phones knew Venezuela earthquake was coming,1,1,0.0,neutral,2026-07-05T10:07:19.620103
+48790990,The Preemptive Draw and Preemptive Grip in the Cash-in-Transit Sector,2,0,0.0,neutral,2026-07-05T10:07:19.621103
+48790966,"In AI-exposed jobs, the youngest workers are losing ground",1,1,-0.3818,negative,2026-07-05T10:07:19.621103
+48790934,The tool layer for developers and AI agents,1,1,0.0,neutral,2026-07-05T10:07:19.622115
+48790915,Homelab Chronicles: A Dusty Gaming PC and a 2AM Basement Spiral,1,0,0.0,neutral,2026-07-05T10:07:19.622115
+48790913,University of Oxford Is Older Than the Aztec Empire and Other Facts of History (2013),35,7,0.0,neutral,2026-07-05T10:07:19.622115
