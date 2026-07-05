@@ -1,0 +1,15 @@
+{
+  "type": "record",
+  "name": "HNPost",
+  "namespace": "com.pulselite",
+  "doc": "Schema for a Hacker News post event - v2 (added flair field)",
+  "fields": [
+    {"name": "id", "type": ["null", "int"], "default": null},
+    {"name": "title", "type": "string"},
+    {"name": "score", "type": ["null", "int"], "default": null},
+    {"name": "comments", "type": ["null", "int"], "default": null},
+    {"name": "timestamp", "type": "string"},
+    {"name": "ingested_at", "type": "string"},
+    {"name": "flair", "type": ["null", "string"], "default": null}
+  ]
+}
