@@ -183,3 +183,35 @@ id,title,score,comments,sentiment,sentiment_label,timestamp
 48790913,University of Oxford Is Older Than the Aztec Empire and Other Facts of History (2013),35,7,0.0,neutral,2026-07-05T10:07:19.622115
 48791308,Binary Coverage the Wrong Way,1,0,-0.4767,negative,2026-07-05T10:12:03.524280
 48791328,Shadcn/UI now defaults to Base UI instead of Radix,2,0,0.0,neutral,2026-07-05T10:18:25.896814
+48791366,Meituan Trained a 1.6T-Parameter AI Model Without Nvidia GPUs,1,0,0.0,neutral,2026-07-05T10:30:21.957812
+48791362,China's LongCat-2.0 Becomes the Biggest AI Model Without Nvidia Chips,1,0,0.0,neutral,2026-07-05T10:30:21.957812
+48791380,Mouse: Precision Editing Tools for AI Coding Agents,1,0,0.0,neutral,2026-07-05T10:32:50.524089
+48791385,US and Chinese companies train almost all of the most-used AI models,1,0,0.0,neutral,2026-07-05T10:35:17.285461
+48794446,Organic Maps,1,0,0.0,neutral,2026-07-05T19:46:43.714315
+48794426,GitButler in the Terminal,1,0,0.0,neutral,2026-07-05T19:46:43.723419
+48794410,Free M&A Encyclopedia,1,0,0.5106,positive,2026-07-05T19:46:43.723419
+48794406,HNP-Sum: Hidden Number Problem with Small Unknown Multipliers in Python,1,0,-0.34,negative,2026-07-05T19:46:43.723419
+48794403,The Erasure of Interaction,1,0,0.0,neutral,2026-07-05T19:46:43.724423
+48794377,Over 140k maps of all kinds,1,0,0.0,neutral,2026-07-05T19:46:43.724423
+48794373,Show HN: A pipeline that writes courses and adversarially reviews them,2,0,0.0,neutral,2026-07-05T19:46:43.724423
+48794325,PEP 836: JIT Go Brrr: The Path to a Supported JIT Compiler for CPython,3,0,0.3182,positive,2026-07-05T19:46:43.724423
+48794302,Run Windows 2000 on a DEC Alpha with a new es40 fork,2,0,0.0,neutral,2026-07-05T19:46:43.724423
+48794281,"Hi, I am a 10 years old kid and made a Cool app",1,3,0.3182,positive,2026-07-05T19:46:43.724423
+48794264,The missing 500 million: Cosmic bombardment melted Earth's first crust,1,0,-0.296,negative,2026-07-05T19:46:43.724423
+48794259,Terence Tao: What's Next for SAIR Competitions [video],1,0,0.0,neutral,2026-07-05T19:46:43.724423
+48794234,Show HN: Calm Engineering Dashboard,1,0,0.3182,positive,2026-07-05T19:46:43.724423
+48794227,Catastrophe theory; geniuses and maniacs (2011),1,0,-0.765,negative,2026-07-05T19:46:43.724423
+48794219,Researchers find ways to keep homes cooler in summer,1,0,0.0,neutral,2026-07-05T19:46:43.724423
+48794199,Tensorless – An exact thermodynamic execution sandbox in C++20,1,0,0.0,neutral,2026-07-05T19:46:43.725420
+48794193,Open-source prompt infrastructure toolkit,1,0,0.0,neutral,2026-07-05T19:46:43.725420
+48794184,A Story of Screwdriver Drivers,7,1,0.0772,positive,2026-07-05T19:46:43.725420
+48794179,Phosh 0.56.0,49,6,0.0,neutral,2026-07-05T19:46:43.725420
+48794176,Show HN: Hacker-News Jobs,1,0,0.0,neutral,2026-07-05T19:46:43.725420
+48794162,Graphify: Turn any codebase into a queryable knowledge graph,1,0,0.0,neutral,2026-07-05T19:46:43.725420
+48794160,I spent 100 hours building a website you will use for 20 minutes a week,2,3,0.0,neutral,2026-07-05T19:46:43.725420
+48794152,Show HN: UATC-Closed-loop VRAM control and dynamic data pruning for LLM training,1,0,0.3818,positive,2026-07-05T19:46:43.725420
+48794135,"The Lion, The Witch, and the audacity of recruiters",5,0,-0.3612,negative,2026-07-05T19:46:43.725420
+48794112,Matrix Multiplication on Blackwell,1,0,0.0,neutral,2026-07-05T19:46:43.725420
+48794460,HTML as a native data format for LLMs,1,0,0.0,neutral,2026-07-05T19:47:43.093341
+48794458,Avoiding SQLite Database Locks in Production,1,0,-0.34,negative,2026-07-05T19:47:43.093341
+48794465,Tech firms are blaming AI for device and console price rises,1,0,-0.4939,negative,2026-07-05T19:48:41.977807

@@ -1560,6 +1560,62 @@ def _render_live_dashboard() -> None:
                 st.info('Accumulating drift data — needs 2+ minute windows.')
         except Exception as _e:
             st.info(f'Drift detection warming up...')
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown(section_title("🔗", "Stream-Stream Join: Trend Correlation", "Pearson correlation between HN New Stories vs Top Stories volume"), unsafe_allow_html=True)
+    try:
+        import pandas as _pd2
+        _corr_path = "data_correlation.csv"
+        if os.path.exists(_corr_path):
+            _corr_df = _pd2.read_csv(_corr_path)
+            if not _corr_df.empty and len(_corr_df) > 1:
+                _col1, _col2 = st.columns([2, 1])
+                with _col1:
+                    _fig_corr = go.Figure()
+                    _fig_corr.add_trace(go.Scatter(
+                        x=_corr_df.index, y=_corr_df["new_volume"],
+                        name="New Stories", mode="lines+markers",
+                        line=dict(color=COLORS["brand_end"], width=2)
+                    ))
+                    _fig_corr.add_trace(go.Scatter(
+                        x=_corr_df.index, y=_corr_df["top_volume"],
+                        name="Top Stories", mode="lines+markers",
+                        line=dict(color=COLORS["warning"], width=2)
+                    ))
+                    apply_chart_theme(_fig_corr, height=260, showlegend=True)
+                    st.plotly_chart(_fig_corr, use_container_width=True)
+                with _col2:
+                    _latest_corr = float(_corr_df["correlation"].iloc[-1])
+                    _corr_gauge = go.Figure(go.Indicator(
+                        mode="gauge+number",
+                        value=round(_latest_corr, 3),
+                        number=dict(font=dict(color=COLORS["text_primary"], size=28)),
+                        gauge=dict(
+                            axis=dict(range=[-1, 1]),
+                            bar=dict(color=COLORS["brand_end"] if _latest_corr > 0.5 else COLORS["warning"] if _latest_corr > 0 else COLORS["negative"], thickness=0.3),
+                            bgcolor="rgba(0,0,0,0)", borderwidth=0,
+                            steps=[
+                                dict(range=[-1, 0], color="rgba(244,63,94,0.15)"),
+                                dict(range=[0, 0.5], color="rgba(245,158,11,0.15)"),
+                                dict(range=[0.5, 1], color="rgba(34,197,94,0.15)")
+                            ]
+                        )
+                    ))
+                    _corr_gauge.update_layout(
+                        plot_bgcolor="rgba(0,0,0,0)",
+                        paper_bgcolor="rgba(0,0,0,0)",
+                        font=dict(color=COLORS["text_secondary"]),
+                        margin=dict(l=10, r=10, t=30, b=10),
+                        height=220
+                    )
+                    st.plotly_chart(_corr_gauge, use_container_width=True)
+                    _corr_label = "Strong positive" if _latest_corr > 0.7 else "Moderate" if _latest_corr > 0.3 else "Weak/No correlation"
+                    st.caption(f"Correlation: **{_latest_corr:.3f}** — {_corr_label}")
+            else:
+                st.info("Stream join needs 5+ minutes of data from both topics.")
+        else:
+            st.info("Start stream_join.py to see correlation analysis.")
+    except Exception as _e:
+        st.info("Correlation data loading...")
     with tab_anomalies:
         col_e, col_f = st.columns([1, 1])
 
