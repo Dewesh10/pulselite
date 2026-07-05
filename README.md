@@ -1,4 +1,5 @@
 # PulseLite 🔴
+![CI](https://github.com/Dewesh10/pulselite/actions/workflows/test.yml/badge.svg)
 🌐 **Live Demo:** https://pulselite-dewesh.streamlit.app
 
 > Real-time Hacker News pulse tracker — know what tech is talking about, the moment it happens.
