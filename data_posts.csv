@@ -217,3 +217,10 @@ id,title,score,comments,sentiment,sentiment_label,timestamp
 48794465,Tech firms are blaming AI for device and console price rises,1,0,-0.4939,negative,2026-07-05T19:48:41.977807
 48794469,How railway timetables became Unix time,1,0,0.0,neutral,2026-07-05T19:49:39.602171
 48794482,"AI models should reason, tools should execute (Utilix)",1,0,0.0,neutral,2026-07-05T19:51:37.685499
+48794511,Why do u check my website but dont register,1,0,0.0,neutral,2026-07-05T19:54:35.466195
+48794521,Solving Santa Claus Puzzle with a Model Checker,1,0,0.34,positive,2026-07-05T19:56:32.176476
+48794520,What's YOUT Famuly's Story?,1,0,0.0,neutral,2026-07-05T19:56:32.176476
+48794538,Deterministic Simulation Testing in Go with Synctest,1,0,0.0,neutral,2026-07-05T19:57:31.687195
+48794546,Need feedback to a simple game I build for my startup regarding PMF,1,1,0.0,neutral,2026-07-05T19:58:30.277024
+48794551,Solving Sudoku in Pure SQL,1,0,0.34,positive,2026-07-05T19:59:28.415588
+48794553,I built an AI that diagnoses PagerDuty incidents and posts fixes to Slack,1,0,0.0,neutral,2026-07-05T20:00:27.213774

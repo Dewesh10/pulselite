@@ -961,13 +961,14 @@ def section_title(icon: str, title: str, subtitle: str | None = None) -> str:
     return f'<div class="pl-section-title">{icon} {title}</div>{sub}'
 
 
-def post_card(title: str, score: int, comments: int, sentiment: float, label: str, timestamp: str) -> str:
+def post_card(title: str, score: int, comments: int, sentiment: float, label: str, timestamp: str, post_id: int = None) -> str:
     emoji = SENTIMENT_EMOJI.get(label, "🔵")
     short_title = title if len(title) <= 100 else title[:97] + "…"
     ts_display = timestamp[:16].replace("T", " ") if timestamp else "—"
+    hn_url = f"https://news.ycombinator.com/item?id={post_id}" if post_id else "#"
     return _raw(f"""
     <div class="pl-post-card {label}">
-        <div class="pl-post-title">{emoji} {short_title}</div>
+        <div class="pl-post-title">{emoji} <a href="{hn_url}" target="_blank" style="color:inherit;text-decoration:none;">{short_title}</a></div>
         <div class="pl-post-meta">
             <span>⬆ {int(score)} pts</span>
             <span>💬 {int(comments)}</span>
@@ -1406,7 +1407,7 @@ def _render_live_dashboard() -> None:
             page_df = filtered_posts.iloc[start:start + page_size]
 
             cards_html = "".join(
-                post_card(row.title, row.score, row.comments, row.sentiment, row.sentiment_label, row.timestamp)
+                post_card(row.title, row.score, row.comments, row.sentiment, row.sentiment_label, row.timestamp, row.id)
                 for row in page_df.itertuples()
             )
             st.markdown(cards_html, unsafe_allow_html=True)
