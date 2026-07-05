@@ -215,3 +215,4 @@ id,title,score,comments,sentiment,sentiment_label,timestamp
 48794460,HTML as a native data format for LLMs,1,0,0.0,neutral,2026-07-05T19:47:43.093341
 48794458,Avoiding SQLite Database Locks in Production,1,0,-0.34,negative,2026-07-05T19:47:43.093341
 48794465,Tech firms are blaming AI for device and console price rises,1,0,-0.4939,negative,2026-07-05T19:48:41.977807
+48794469,How railway timetables became Unix time,1,0,0.0,neutral,2026-07-05T19:49:39.602171
