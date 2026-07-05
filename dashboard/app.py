@@ -1634,6 +1634,30 @@ def _render_live_dashboard() -> None:
         q4.metric("Missing score", int(quality.get("missing_score", 0) or 0))
 
         st.write("")
+        st.write("")
+        st.markdown(section_title("📋", "Schema Registry"), unsafe_allow_html=True)
+        try:
+            import requests as _req
+            _sr = _req.get("http://localhost:8081/subjects", timeout=2)
+            if _sr.status_code == 200:
+                _subjects = _sr.json()
+                st.success("✅ Schema Registry is connected")
+                _col1, _col2 = st.columns(2)
+                with _col1:
+                    st.metric("Registered Subjects", len(_subjects))
+                    st.caption(f"Subjects: {', '.join(_subjects)}")
+                with _col2:
+                    try:
+                        _versions = _req.get("http://localhost:8081/subjects/hn-posts-value/versions", timeout=2).json()
+                        st.metric("Schema Versions", len(_versions))
+                        _latest = _req.get(f"http://localhost:8081/subjects/hn-posts-value/versions/{_versions[-1]}", timeout=2).json()
+                        st.caption(f"Latest schema ID: {_latest.get('id', 'N/A')}")
+                    except Exception:
+                        st.caption("No versions yet")
+            else:
+                st.warning("⚠️ Schema Registry returned unexpected response")
+        except Exception:
+            st.warning("⚠️ Schema Registry not reachable — is it running?")
         st.markdown(section_title("🏗️", "Architecture"), unsafe_allow_html=True)
         st.markdown(
             _raw(f"""
