@@ -2,3 +2,7 @@ venv/
 __pycache__/
 *.pyc
 .env
+data_*.csv
+*.db
+*.db.snap
+*.db.dash
