@@ -104,3 +104,50 @@ def test_anomaly_just_above_boundary():
     historical = [10, 10, 10]
     current = 31  # just above 3x
     assert check_anomaly(current, historical) is True
+
+# ============================================================================
+# Producer Tests (mocked HN API)
+# ============================================================================
+
+from unittest.mock import patch, MagicMock
+
+
+def test_fetch_with_retry_success():
+    """fetch_with_retry should return data on successful request."""
+    import sys
+    import os
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'producer'))
+    
+    mock_response = MagicMock()
+    mock_response.json.return_value = [1, 2, 3, 4, 5]
+    mock_response.raise_for_status.return_value = None
+
+    with patch('requests.get', return_value=mock_response):
+        from reddit_producer import fetch_with_retry
+        result = fetch_with_retry("http://fake-url.com")
+        assert result == [1, 2, 3, 4, 5]
+
+
+def test_fetch_with_retry_failure():
+    """fetch_with_retry should return None after all retries fail."""
+    import sys
+    import os
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'producer'))
+
+    with patch('requests.get', side_effect=Exception("Connection error")):
+        from reddit_producer import fetch_with_retry
+        result = fetch_with_retry("http://fake-url.com", retries=2, backoff=0)
+        assert result is None
+
+
+def test_sentiment_empty_string():
+    """Empty string should return neutral sentiment."""
+    score, label = get_sentiment("")
+    assert label == "neutral"
+    assert -0.05 <= score <= 0.05
+
+
+def test_sentiment_mixed_signals():
+    """Text with mixed signals should have moderate score."""
+    score, label = get_sentiment("Good progress but terrible execution")
+    assert -1.0 <= score <= 1.0
