@@ -60,7 +60,7 @@ def resolve_db_path() -> str:
 
 DB_PATH = resolve_db_path()
 DEMO_MODE = os.environ.get("DEMO_MODE", "false").lower() == "true"
-DEMO_DATA_DIR = "demo_data"
+DEMO_DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "demo_data")
 DASH_DB = DB_PATH
 
 # --------------------------------------------------------------------------
