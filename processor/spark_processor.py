@@ -9,6 +9,9 @@ from confluent_kafka import Consumer
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 from sentence_transformers import SentenceTransformer
 from datetime import datetime
+import signal
+import sys
+
 
 KAFKA_TOPIC = "hn-posts"
 KAFKA_SERVER = "localhost:9092"
@@ -156,6 +159,14 @@ def main():
         "auto.offset.reset": "earliest"
     })
     consumer.subscribe([KAFKA_TOPIC])
+    def shutdown_handler(sig, frame):
+        print("\n⚡ Shutting down processor gracefully...")
+        consumer.close()
+        print("✅ Kafka consumer closed. Offsets committed. Goodbye.")
+        sys.exit(0)
+
+    signal.signal(signal.SIGINT, shutdown_handler)
+    signal.signal(signal.SIGTERM, shutdown_handler)
 
     minute_bucket = {}
     minute_titles = {}

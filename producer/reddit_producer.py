@@ -6,6 +6,17 @@ import io
 import struct
 from datetime import datetime
 from confluent_kafka import Producer
+import signal
+import sys
+
+def shutdown_handler(sig, frame):
+    print("\n⚡ Shutting down producer gracefully...")
+    producer.flush()
+    print("✅ All messages flushed. Goodbye.")
+    sys.exit(0)
+
+signal.signal(signal.SIGINT, shutdown_handler)
+signal.signal(signal.SIGTERM, shutdown_handler)
 
 SOURCE = "Hacker News"
 NEW_STORIES_URL = "https://hacker-news.firebaseio.com/v0/newstories.json"
@@ -48,11 +59,29 @@ def serialize_avro(record, schema_id):
     return buf.getvalue()
 
 
+def fetch_with_retry(url, retries=3, backoff=2):
+    for attempt in range(retries):
+        try:
+            response = requests.get(url, timeout=10)
+            response.raise_for_status()
+            return response.json()
+        except Exception as e:
+            if attempt < retries - 1:
+                wait = backoff ** attempt
+                print(f"⚠️ Request failed ({e}), retrying in {wait}s...")
+                time.sleep(wait)
+            else:
+                print(f"❌ Failed after {retries} attempts: {e}")
+                return None
+
+
 def fetch_posts(limit=25):
-    story_ids = requests.get(NEW_STORIES_URL).json()[:limit]
+    story_ids = fetch_with_retry(NEW_STORIES_URL)
+    if not story_ids:
+        return []
     posts = []
-    for sid in story_ids:
-        item = requests.get(ITEM_URL.format(sid)).json()
+    for sid in story_ids[:limit]:
+        item = fetch_with_retry(ITEM_URL.format(sid))
         if item and "title" in item:
             posts.append(item)
     return posts
