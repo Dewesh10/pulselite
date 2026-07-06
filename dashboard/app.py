@@ -59,6 +59,8 @@ def resolve_db_path() -> str:
 
 
 DB_PATH = resolve_db_path()
+DEMO_MODE = os.environ.get("DEMO_MODE", "false").lower() == "true"
+DEMO_DATA_DIR = "demo_data"
 DASH_DB = DB_PATH
 
 # --------------------------------------------------------------------------
@@ -172,10 +174,11 @@ CSV_ALERTS = "data_alerts.csv"
 
 @st.cache_data(ttl=1, show_spinner=False)
 def load_posts(limit: int = 1000) -> pd.DataFrame:
-    if not os.path.exists(CSV_POSTS):
+    path = os.path.join(DEMO_DATA_DIR, "data_posts.csv") if DEMO_MODE else "data_posts.csv"
+    if not os.path.exists(path):
         return pd.DataFrame()
     try:
-        df = pd.read_csv(CSV_POSTS, encoding="utf-8")
+        df = pd.read_csv(path, encoding="utf-8")
         if df.empty:
             return df
         df["timestamp_dt"] = pd.to_datetime(df["timestamp"], errors="coerce")
@@ -191,10 +194,11 @@ def load_posts(limit: int = 1000) -> pd.DataFrame:
 
 @st.cache_data(ttl=1, show_spinner=False)
 def load_volume(limit_minutes: int = 60) -> pd.DataFrame:
-    if not os.path.exists(CSV_VOLUME):
+    path = os.path.join(DEMO_DATA_DIR, "data_volume.csv") if DEMO_MODE else CSV_VOLUME
+    if not os.path.exists(path):
         return pd.DataFrame()
     try:
-        df = pd.read_csv(CSV_VOLUME, encoding="utf-8")
+        df = pd.read_csv(path, encoding="utf-8")
         if df.empty:
             return df
         df["minute_dt"] = pd.to_datetime(df["minute"], errors="coerce", format="%Y-%m-%d %H:%M")
@@ -206,10 +210,11 @@ def load_volume(limit_minutes: int = 60) -> pd.DataFrame:
 
 @st.cache_data(ttl=1, show_spinner=False)
 def load_alerts(limit: int = 25) -> pd.DataFrame:
-    if not os.path.exists(CSV_ALERTS):
+    path = os.path.join(DEMO_DATA_DIR, "data_alerts.csv") if DEMO_MODE else CSV_ALERTS
+    if not os.path.exists(path):
         return pd.DataFrame()
     try:
-        df = pd.read_csv(CSV_ALERTS, encoding="utf-8")
+        df = pd.read_csv(path, encoding="utf-8")
         if df.empty:
             return df
         df["timestamp_dt"] = pd.to_datetime(df["timestamp"], errors="coerce")
@@ -1103,6 +1108,8 @@ with st.sidebar:
         step=5,
         disabled=not st.session_state.auto_refresh,
     )
+    if DEMO_MODE:
+        st.warning("🎬 DEMO MODE — showing sample data")
     if st.button("🔄 Refresh now", use_container_width=True):
         clear_all_caches()
         st.rerun()
@@ -1234,6 +1241,8 @@ def _render_live_dashboard() -> None:
             """),
             unsafe_allow_html=True,
         )
+        if DEMO_MODE:
+            st.info("🎬 **Demo Mode** — Live pipeline not required. [Run locally](https://github.com/Dewesh10/pulselite) to see real data.")
 
     st.divider()
 
