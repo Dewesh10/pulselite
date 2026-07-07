@@ -17,7 +17,6 @@ from collections import Counter
 from dataclasses import dataclass
 from datetime import datetime
 from streamlit_autorefresh import st_autorefresh
-import duckdb
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
@@ -39,29 +38,8 @@ def _raw(html: str) -> str:
 # Paths
 # --------------------------------------------------------------------------
 
-def resolve_db_path() -> str:
-    """
-    Resolve the DuckDB file regardless of whether Streamlit is launched
-    from the repo root (`streamlit run dashboard/app.py`, the documented
-    way) or from inside the dashboard/ folder itself.
-    """
-    candidates = [
-        "pulselite.db",
-        os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "pulselite.db"),
-        os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "pulselite.db"),
-    ]
-    for path in candidates:
-        if os.path.exists(path):
-            return path
-    # Fall back to the documented default even if it doesn't exist yet —
-    # the UI has a graceful "waiting for data" state for this case.
-    return "pulselite.db"
-
-
-DB_PATH = resolve_db_path()
 DEMO_MODE = os.environ.get("DEMO_MODE", "false").lower() == "true"
 DEMO_DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "demo_data")
-DASH_DB = DB_PATH
 
 # --------------------------------------------------------------------------
 # App metadata
@@ -164,17 +142,39 @@ PULSE_WEIGHTS = {
 # ============================================================================
 # DATA MODULE (merged)
 # ============================================================================
-def db_exists() -> bool:
-    return os.path.exists(DB_PATH)
-
-
 CSV_POSTS = "data_posts.csv"
 CSV_VOLUME = "data_volume.csv"
 CSV_ALERTS = "data_alerts.csv"
 
+
+def db_exists() -> bool:
+    demo_path = os.path.join(DEMO_DATA_DIR, "data_posts.csv")
+    return os.path.exists(demo_path) if DEMO_MODE else os.path.exists(CSV_POSTS)
+
+
+def _shift_demo_time(df: pd.DataFrame, dt_col: str, str_col: str, str_fmt: str) -> pd.DataFrame:
+    """
+    Demo Mode replays a static, pre-recorded snapshot. Without this, the
+    snapshot's timestamps stay fixed at whenever it was generated, so the
+    "freshness" badge would drift further OFFLINE every day the repo sits
+    untouched — exactly the frozen-demo problem Demo Mode exists to solve.
+
+    This shifts every timestamp by a constant offset so the most recent
+    recorded event always lands at "now", while preserving the original
+    spacing between events (so the story of the data — volume spikes,
+    sentiment swings — plays out identically every time it's viewed).
+    """
+    if not DEMO_MODE or df.empty or df[dt_col].isna().all():
+        return df
+    offset = pd.Timestamp.now() - df[dt_col].max()
+    df[dt_col] = df[dt_col] + offset
+    df[str_col] = df[dt_col].dt.strftime(str_fmt)
+    return df
+
+
 @st.cache_data(ttl=1, show_spinner=False)
 def load_posts(limit: int = 1000) -> pd.DataFrame:
-    path = os.path.join(DEMO_DATA_DIR, "data_posts.csv") if DEMO_MODE else "data_posts.csv"
+    path = os.path.join(DEMO_DATA_DIR, "data_posts.csv") if DEMO_MODE else CSV_POSTS
     if not os.path.exists(path):
         return pd.DataFrame()
     try:
@@ -187,6 +187,7 @@ def load_posts(limit: int = 1000) -> pd.DataFrame:
         df["sentiment"] = pd.to_numeric(df["sentiment"], errors="coerce").fillna(0.0)
         df["sentiment_label"] = df["sentiment_label"].fillna("neutral")
         df["engagement"] = df["score"] + df["comments"] * 2
+        df = _shift_demo_time(df, "timestamp_dt", "timestamp", "%Y-%m-%dT%H:%M:%S.%f")
         return df.tail(limit)
     except Exception:
         return pd.DataFrame()
@@ -201,8 +202,13 @@ def load_volume(limit_minutes: int = 60) -> pd.DataFrame:
         df = pd.read_csv(path, encoding="utf-8")
         if df.empty:
             return df
-        df["minute_dt"] = pd.to_datetime(df["minute"], errors="coerce", format="%Y-%m-%d %H:%M")
+        # Accept both "YYYY-MM-DD HH:MM" (live pipeline) and
+        # "YYYY-MM-DDTHH:MM" (demo generator) without silently producing
+        # all-NaT timestamps — previously a strict `format=` here made
+        # every demo-mode volume timestamp fail to parse.
+        df["minute_dt"] = pd.to_datetime(df["minute"], errors="coerce")
         df["post_count"] = pd.to_numeric(df["post_count"], errors="coerce").fillna(0)
+        df = _shift_demo_time(df, "minute_dt", "minute", "%Y-%m-%d %H:%M")
         return df.tail(limit_minutes)
     except Exception:
         return pd.DataFrame()
@@ -220,6 +226,7 @@ def load_alerts(limit: int = 25) -> pd.DataFrame:
         df["timestamp_dt"] = pd.to_datetime(df["timestamp"], errors="coerce")
         df["post_count"] = pd.to_numeric(df["post_count"], errors="coerce").fillna(0)
         df["rolling_avg"] = pd.to_numeric(df["rolling_avg"], errors="coerce").fillna(0.0)
+        df = _shift_demo_time(df, "timestamp_dt", "timestamp", "%Y-%m-%dT%H:%M:%S.%f")
         return df.tail(limit)
     except Exception:
         return pd.DataFrame()
@@ -256,19 +263,6 @@ def load_null_quality() -> dict:
         "missing_sentiment": int(df["sentiment_label"].isna().sum()),
         "missing_score": int(df["score"].isna().sum())
     }
-
-
-def clear_all_caches() -> None:
-    load_posts.clear()
-    load_volume.clear()
-    load_alerts.clear()
-    load_sentiment_summary.clear()
-    load_table_counts.clear()
-    load_null_quality.clear()
-
-
-def db_exists() -> bool:
-    return os.path.exists(CSV_POSTS)
 
 
 def clear_all_caches() -> None:
@@ -1134,7 +1128,7 @@ with st.sidebar:
     st.divider()
     with st.expander("🏗️ Architecture", expanded=False):
         st.markdown(" → ".join(PIPELINE))
-        st.caption(f"Source: {SOURCE_LABEL}  ·  Storage: DuckDB (`{DB_PATH}`)")
+        st.caption(f"Source: {SOURCE_LABEL}  ·  Storage: CSV (`{CSV_POSTS}`, `{CSV_VOLUME}`, `{CSV_ALERTS}`)")
 
     with st.expander("ℹ️ About PulseLite", expanded=False):
         st.markdown(
@@ -1153,13 +1147,9 @@ with st.sidebar:
 
 
 # ==========================================================================
-# Live section — everything here re-renders on every auto-refresh tick
-# without reloading the whole page (via st.fragment), so KPI numbers,
-# charts, and the clock genuinely update in place.
+# Live section — driven by st_autorefresh below; re-renders on every tick
+# so KPI numbers, charts, and the clock genuinely update in place.
 # ==========================================================================
-
-_FRAGMENT = getattr(st, "fragment", None) or getattr(st, "experimental_fragment", None)
-
 
 def _render_live_dashboard() -> None:
     # ==========================================================================
@@ -1728,16 +1718,18 @@ def _render_live_dashboard() -> None:
         st.markdown(
             _raw(f"""
             <div class="pl-diagram">{SOURCE_LABEL} API
-       │  (poll new stories)
+       │  (poll new + top stories)
        ▼
-    Kafka topic "hn-posts"
-       │  (producer/reddit_producer.py)
+    producer/reddit_producer.py · producer/top_producer.py
+       │  (Avro-encoded, Confluent Schema Registry)
        ▼
-    Stream Processor
-       │  (processor/spark_processor.py — VADER sentiment + windowed volume)
+    Kafka topics: hn-posts · hn-top
+       │
        ▼
-    DuckDB  ({DB_PATH})
-       │  tables: posts · volume_per_minute · anomaly_alerts
+    processor/spark_processor.py  +  processor/stream_join.py
+       │  (VADER sentiment · windowed volume · anomaly detection · stream-stream join)
+       ▼
+    CSV store: {CSV_POSTS} · {CSV_VOLUME} · {CSV_ALERTS}
        ▼
     PulseLite Dashboard  (you are here)</div>
             """),
