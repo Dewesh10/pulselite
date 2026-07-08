@@ -11,6 +11,7 @@
 
 PulseLite ingests Hacker News in real time through Kafka and surfaces:
 
+- 🧠 **Pulse Digest** — an LLM-generated (Claude Haiku) narrative summary of what's happening right now, refreshed every 5 minutes, with a deterministic rule-based fallback if no API key is configured
 - 📈 **Post volume per minute**, live-updating with a rolling average
 - 😊 **Sentiment analysis** (VADER) — positive / negative / neutral, plus a composite mood index
 - 🔤 **Trending terms** — most frequent meaningful words across tracked titles
@@ -65,6 +66,7 @@ Full component-by-component breakdown: [`docs/architecture.md`](docs/architectur
 | Sentiment analysis | VADER | Lightweight, no model training needed |
 | Drift detection | sentence-transformers | Embedding-based topic shift detection |
 | Stream join | Python + NumPy | Cross-topic correlation (see [ADR-005](docs/adr/adr-005-stream-join.md)) |
+| Narrative summary | Anthropic API (Claude Haiku) | LLM-generated Pulse Digest, rule-based fallback if no key (see [ADR-006](docs/adr/adr-006-pulse-digest.md)) |
 | Storage | CSV | Lock-free handoff between processor and dashboard, no concurrent-writer issues |
 | Dashboard | Streamlit + Plotly | Python-native, live auto-refresh via `st_autorefresh` |
 | CI | GitHub Actions | Runs the test suite on every push |
@@ -93,7 +95,12 @@ python processor/spark_processor.py
 # 6. Terminal 4 — stream join (cross-topic correlation)
 python processor/stream_join.py
 
-# 7. Terminal 5 — dashboard
+# 7. Terminal 5 — Pulse Digest generator (narrative summary, refreshes every 5 min)
+# Optional: set ANTHROPIC_API_KEY first for LLM-generated digests, otherwise
+# it uses a rule-based fallback automatically — see .env.example
+python processor/digest_generator.py
+
+# 8. Terminal 6 — dashboard
 streamlit run dashboard/app.py
 ```
 
@@ -120,8 +127,9 @@ pip install -r requirements-test.txt
 pytest tests/ -v
 ```
 
-13 tests covering sentiment scoring, anomaly detection boundaries, and
-producer retry logic. Runs automatically on every push via GitHub Actions.
+21 tests covering sentiment scoring, anomaly detection boundaries, producer
+retry logic, and Pulse Digest generation (stats gathering, fallback digest
+content, and CSV output). Runs automatically on every push via GitHub Actions.
 
 ## Pipeline Status
 
@@ -129,6 +137,7 @@ producer retry logic. Runs automatically on every push via GitHub Actions.
 - ✅ Kafka message queue — Avro-serialized, Schema Registry-validated
 - ✅ Stream processor — VADER sentiment, volume, anomaly detection, drift detection
 - ✅ Stream-stream join — cross-topic correlation
+- ✅ Pulse Digest — LLM-generated narrative summary with rule-based fallback
 - ✅ CSV storage — lock-free handoff
 - ✅ Streamlit dashboard — 5 tabs (Overview, Live Feed, Trends & Analytics, Anomalies, Pipeline Health) + Demo Mode
 - ✅ CI — automated test suite on every push
@@ -140,10 +149,12 @@ producer retry logic. Runs automatically on every push via GitHub Actions.
 - [ADR 003 — Dashboard Framework](docs/adr/adr-003-dashboard.md)
 - [ADR 004 — Avro + Confluent Schema Registry](docs/adr/adr-004-schema-registry.md)
 - [ADR 005 — Stream-Stream Join](docs/adr/adr-005-stream-join.md)
+- [ADR 006 — LLM Pulse Digest](docs/adr/adr-006-pulse-digest.md)
 
 Also see [`docs/design_doc.md`](docs/design_doc.md) for the original problem
 statement and [`docs/learning-notes.md`](docs/learning-notes.md) for what
 actually broke along the way.
+
 
 ## Author
 

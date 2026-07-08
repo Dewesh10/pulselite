@@ -265,6 +265,32 @@ def load_null_quality() -> dict:
     }
 
 
+@st.cache_data(ttl=5, show_spinner=False)
+def load_digest() -> dict | None:
+    """
+    Reads the most recent row written by processor/digest_generator.py —
+    a short LLM-generated (or rule-based fallback) narrative summary of
+    what's currently happening in the pipeline.
+    """
+    path = os.path.join(DEMO_DATA_DIR, "data_digest.csv") if DEMO_MODE else "data_digest.csv"
+    if not os.path.exists(path):
+        return None
+    try:
+        df = pd.read_csv(path, encoding="utf-8")
+        if df.empty:
+            return None
+        df["generated_dt"] = pd.to_datetime(df["generated_at"], errors="coerce")
+        df = _shift_demo_time(df, "generated_dt", "generated_at", "%Y-%m-%dT%H:%M:%S.%f")
+        last = df.iloc[-1]
+        return {
+            "text": str(last["digest_text"]),
+            "mode": str(last.get("mode", "unknown")),
+            "generated_at": str(last["generated_at"]),
+        }
+    except Exception:
+        return None
+
+
 def clear_all_caches() -> None:
     load_posts.clear()
     load_volume.clear()
@@ -272,6 +298,7 @@ def clear_all_caches() -> None:
     load_sentiment_summary.clear()
     load_table_counts.clear()
     load_null_quality.clear()
+    load_digest.clear()
 
 
 # ============================================================================
@@ -818,6 +845,46 @@ html, body, [class*="css"] {{
     font-size: 0.85rem;
 }}
 
+.pl-digest-card {{
+    position: relative;
+    background: linear-gradient(135deg, rgba(99,102,241,0.14), rgba(34,211,238,0.06));
+    border: 1px solid rgba(99,102,241,0.35);
+    border-radius: 14px;
+    padding: 16px 20px;
+    margin-bottom: 16px;
+    overflow: hidden;
+}}
+.pl-digest-card::before {{
+    content: "";
+    position: absolute;
+    top: 0; left: 0; bottom: 0;
+    width: 4px;
+    background: linear-gradient(180deg, var(--brand-start), var(--brand-end));
+}}
+.pl-digest-label {{
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--brand-end);
+    margin-bottom: 6px;
+}}
+.pl-digest-text {{
+    font-size: 1.02rem;
+    line-height: 1.55;
+    color: var(--text-primary);
+    font-weight: 500;
+}}
+.pl-digest-meta {{
+    margin-top: 8px;
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    font-family: 'JetBrains Mono', monospace;
+}}
+
 .pl-rank-badge {{
     display: inline-flex;
     align-items: center;
@@ -1022,6 +1089,18 @@ def empty_state(emoji: str, title: str, body_html: str) -> str:
         <div class="pl-empty-emoji">{emoji}</div>
         <h3>{title}</h3>
         <p>{body_html}</p>
+    </div>
+    """)
+
+
+def digest_card(text: str, mode: str, generated_at: str) -> str:
+    mode_label = "AI-generated" if mode == "llm" else "auto-generated (rule-based)"
+    ts_display = str(generated_at)[:19].replace("T", " ")
+    return _raw(f"""
+    <div class="pl-digest-card">
+        <div class="pl-digest-label">🧠 Pulse Digest</div>
+        <div class="pl-digest-text">{text}</div>
+        <div class="pl-digest-meta">{mode_label} · updated {ts_display}</div>
     </div>
     """)
 # ==========================================================================
@@ -1253,6 +1332,15 @@ def _render_live_dashboard() -> None:
             unsafe_allow_html=True,
         )
         st.stop()
+
+
+    # ==========================================================================
+    # Pulse Digest — narrative summary, shown before the raw numbers
+    # ==========================================================================
+
+    digest = load_digest()
+    if digest:
+        st.markdown(digest_card(digest["text"], digest["mode"], digest["generated_at"]), unsafe_allow_html=True)
 
 
     # ==========================================================================

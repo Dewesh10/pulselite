@@ -151,3 +151,106 @@ def test_sentiment_mixed_signals():
     """Text with mixed signals should have moderate score."""
     score, label = get_sentiment("Good progress but terrible execution")
     assert -1.0 <= score <= 1.0
+
+
+# ============================================================================
+# Pulse Digest Tests
+# ============================================================================
+
+import sys
+import os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'processor'))
+import digest_generator as dg
+
+
+def test_gather_stats_no_data(tmp_path, monkeypatch):
+    """gather_stats should return safe defaults when no CSVs exist yet."""
+    monkeypatch.chdir(tmp_path)
+    stats = dg.gather_stats()
+    assert stats["total_posts"] == 0
+    assert stats["velocity"] == 0.0
+    assert stats["top_posts"] == []
+    assert stats["recent_anomaly"] is None
+
+
+def test_fallback_digest_no_data():
+    """Fallback digest should tell the reader nothing's tracked yet, not crash."""
+    stats = {
+        "total_posts": 0, "velocity": 0.0, "sentiment_positive_pct": 0.0,
+        "sentiment_negative_pct": 0.0, "top_posts": [], "recent_anomaly": None,
+        "latest_correlation": None, "top_drift": None,
+    }
+    text = dg.generate_fallback_digest(stats)
+    assert "waiting" in text.lower() or "no posts" in text.lower()
+
+
+def test_fallback_digest_with_data():
+    """Fallback digest should cite real numbers from the stats it's given."""
+    stats = {
+        "total_posts": 500, "velocity": 4.2, "sentiment_positive_pct": 60.0,
+        "sentiment_negative_pct": 10.0,
+        "top_posts": [{"title": "Test Story", "score": 200, "comments": 50}],
+        "recent_anomaly": None, "latest_correlation": None, "top_drift": None,
+    }
+    text = dg.generate_fallback_digest(stats)
+    assert "500" in text
+    assert "Test Story" in text
+    assert "leaning positive" in text
+
+
+def test_fallback_digest_includes_anomaly():
+    """When an anomaly is active, the fallback digest should mention it."""
+    stats = {
+        "total_posts": 100, "velocity": 10.0, "sentiment_positive_pct": 30.0,
+        "sentiment_negative_pct": 30.0, "top_posts": [],
+        "recent_anomaly": {"post_count": 25.0, "rolling_avg": 5.0},
+        "latest_correlation": None, "top_drift": None,
+    }
+    text = dg.generate_fallback_digest(stats)
+    assert "anomaly" in text.lower()
+
+
+def test_generate_llm_digest_no_api_key(monkeypatch):
+    """Without ANTHROPIC_API_KEY set, should return None (triggering fallback), not raise."""
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    stats = {
+        "total_posts": 10, "velocity": 1.0, "sentiment_positive_pct": 50.0,
+        "sentiment_negative_pct": 10.0, "top_posts": [], "recent_anomaly": None,
+        "latest_correlation": None, "top_drift": None,
+    }
+    result = dg.generate_llm_digest(stats)
+    assert result is None
+
+
+def test_generate_digest_falls_back_without_key(monkeypatch):
+    """generate_digest should always return a usable (text, mode) pair."""
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    stats = {
+        "total_posts": 10, "velocity": 1.0, "sentiment_positive_pct": 50.0,
+        "sentiment_negative_pct": 10.0, "top_posts": [], "recent_anomaly": None,
+        "latest_correlation": None, "top_drift": None,
+    }
+    text, mode = dg.generate_digest(stats)
+    assert mode == "fallback"
+    assert len(text) > 0
+
+
+def test_write_digest_creates_csv_with_header(tmp_path, monkeypatch):
+    """write_digest should create the CSV with a header on first write."""
+    monkeypatch.chdir(tmp_path)
+    dg.write_digest("Test digest text", "fallback", 42)
+    content = (tmp_path / "data_digest.csv").read_text()
+    assert "generated_at,digest_text,mode,posts_analyzed" in content
+    assert "Test digest text" in content
+    assert "fallback" in content
+
+
+def test_write_digest_appends_without_duplicate_header(tmp_path, monkeypatch):
+    """A second write_digest call should append, not duplicate the header."""
+    monkeypatch.chdir(tmp_path)
+    dg.write_digest("First digest", "fallback", 10)
+    dg.write_digest("Second digest", "llm", 20)
+    content = (tmp_path / "data_digest.csv").read_text()
+    assert content.count("generated_at,digest_text,mode,posts_analyzed") == 1
+    assert "First digest" in content
+    assert "Second digest" in content

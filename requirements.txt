@@ -9,3 +9,4 @@ fastavro==1.9.4
 confluent-kafka==2.3.0
 sentence-transformers==3.4.1
 requests==2.32.3
+anthropic==0.116.0
