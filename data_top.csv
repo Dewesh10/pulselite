@@ -649,3 +649,178 @@ id,title,score,comments,timestamp
 48790912,The Log is the Agent,73,20,2026-07-05T20:12:03.027411
 48765920,Atomic Force Microscope [video],95,11,2026-07-05T20:12:03.027411
 48742175,What ORMs have taught me: just learn SQL (2014),235,272,2026-07-05T20:12:03.027954
+48834309,"GhostLock, a stack-UAF that has existed in all Linux distributions for 15 years",165,59,2026-07-13T10:45:30.285024
+48885643,"Cyberpunk Comics, Manga and Graphic Novels",128,33,2026-07-13T10:45:30.286277
+48886741,Ask HN: Add flag for AI-generated articles,281,164,2026-07-13T10:45:30.286277
+48884395,Tiny Emulators,185,11,2026-07-13T10:45:30.287286
+48827126,"So you want to learn physics (second edition, 2021)",142,21,2026-07-13T10:45:30.287286
+48885728,Designing and assembling my first PCB,78,29,2026-07-13T10:45:30.287791
+48831840,"First look at Quest, the final ship of Antarctic explorer Shackleton",17,1,2026-07-13T10:45:30.287791
+48884984,Ask HN: What Are You Working On? (July 2026),106,325,2026-07-13T10:45:30.287791
+48887753,Count Binface,72,15,2026-07-13T10:45:30.288798
+48882569,LARP – Revenue infrastructure for serious founders,196,40,2026-07-13T10:45:30.288798
+48882716,"Migrating a production AI agent to GPT-5.6: 2.2x faster, 27% cheaper",170,62,2026-07-13T10:45:30.289868
+48883275,Claude Code sends 33k tokens before reading the prompt; OpenCode sends 7k,518,291,2026-07-13T10:45:30.289868
+48881967,How we can reduce traffic congestion,106,136,2026-07-13T10:45:30.289868
+48884992,"Kode Dot Programmable pocket device for makers, pentesters and geeks",58,16,2026-07-13T10:45:30.289868
+48861923,Why write code in 2026,131,170,2026-07-13T10:45:30.291257
+48883238,I Learned to Read Again,119,50,2026-07-13T10:45:30.291257
+48854168,"Vint Cerf, “father of the Internet”, is retiring",293,168,2026-07-13T10:45:30.292257
+48849983,Are you telling me a readonly property is wrecking my performance?,5,3,2026-07-13T10:45:30.292257
+48882554,Automation Without Understanding,107,45,2026-07-13T10:45:30.292257
+48859526,"Guy took Jupiter photo with Game Boy Camera, giant telescope, publishes tutorial",7,2,2026-07-13T10:45:30.292257
+48885138,"Profiling the ""Abundance"" housing bottleneck with real data",35,28,2026-07-13T10:45:30.293673
+48884618,Flash-MSA: Accelerating Million-Token Training with Sparse Attention Kernels,33,2,2026-07-13T10:45:30.293673
+48883090,Mechanistic interpretability researchers applying causality theory to LLMs,94,67,2026-07-13T10:45:30.293673
+48885705,Why Vanilla JavaScript,107,62,2026-07-13T10:45:30.294727
+48882956,Against Usefulness,96,24,2026-07-13T10:45:30.295283
+48834309,"GhostLock, a stack-UAF that has existed in all Linux distributions for 15 years",165,60,2026-07-13T10:46:32.903043
+48885643,"Cyberpunk Comics, Manga and Graphic Novels",128,34,2026-07-13T10:46:32.903043
+48886741,Ask HN: Add flag for AI-generated articles,283,166,2026-07-13T10:46:32.904225
+48884395,Tiny Emulators,185,11,2026-07-13T10:46:32.904225
+48827126,"So you want to learn physics (second edition, 2021)",142,21,2026-07-13T10:46:32.905615
+48885728,Designing and assembling my first PCB,78,29,2026-07-13T10:46:32.905615
+48831840,"First look at Quest, the final ship of Antarctic explorer Shackleton",17,1,2026-07-13T10:46:32.906775
+48884984,Ask HN: What Are You Working On? (July 2026),106,325,2026-07-13T10:46:32.906775
+48887753,Count Binface,73,15,2026-07-13T10:46:32.907816
+48882569,LARP – Revenue infrastructure for serious founders,197,40,2026-07-13T10:46:32.907816
+48882716,"Migrating a production AI agent to GPT-5.6: 2.2x faster, 27% cheaper",170,62,2026-07-13T10:46:32.909309
+48883275,Claude Code sends 33k tokens before reading the prompt; OpenCode sends 7k,518,291,2026-07-13T10:46:32.909309
+48884992,"Kode Dot Programmable pocket device for makers, pentesters and geeks",58,16,2026-07-13T10:46:32.909309
+48881967,How we can reduce traffic congestion,106,136,2026-07-13T10:46:32.910643
+48861923,Why write code in 2026,131,170,2026-07-13T10:46:32.910643
+48883238,I Learned to Read Again,119,50,2026-07-13T10:46:32.912311
+48854168,"Vint Cerf, “father of the Internet”, is retiring",293,168,2026-07-13T10:46:32.912311
+48849983,Are you telling me a readonly property is wrecking my performance?,5,3,2026-07-13T10:46:32.912819
+48882554,Automation Without Understanding,107,45,2026-07-13T10:46:32.913356
+48885705,Why Vanilla JavaScript,108,62,2026-07-13T10:46:32.913908
+48859526,"Guy took Jupiter photo with Game Boy Camera, giant telescope, publishes tutorial",7,2,2026-07-13T10:46:32.914443
+48885138,"Profiling the ""Abundance"" housing bottleneck with real data",35,28,2026-07-13T10:46:32.914978
+48884618,Flash-MSA: Accelerating Million-Token Training with Sparse Attention Kernels,33,2,2026-07-13T10:46:32.915516
+48883090,Mechanistic interpretability researchers applying causality theory to LLMs,94,67,2026-07-13T10:46:32.916056
+48882956,Against Usefulness,96,24,2026-07-13T10:46:32.916585
+48834309,"GhostLock, a stack-UAF that has existed in all Linux distributions for 15 years",165,60,2026-07-13T10:47:33.285290
+48885643,"Cyberpunk Comics, Manga and Graphic Novels",128,34,2026-07-13T10:47:33.285859
+48886741,Ask HN: Add flag for AI-generated articles,285,166,2026-07-13T10:47:33.285859
+48884395,Tiny Emulators,185,11,2026-07-13T10:47:33.287869
+48827126,"So you want to learn physics (second edition, 2021)",142,21,2026-07-13T10:47:33.287869
+48885728,Designing and assembling my first PCB,78,29,2026-07-13T10:47:33.288866
+48831840,"First look at Quest, the final ship of Antarctic explorer Shackleton",17,1,2026-07-13T10:47:33.288866
+48884984,Ask HN: What Are You Working On? (July 2026),106,326,2026-07-13T10:47:33.289865
+48882569,LARP – Revenue infrastructure for serious founders,197,40,2026-07-13T10:47:33.289865
+48882716,"Migrating a production AI agent to GPT-5.6: 2.2x faster, 27% cheaper",170,62,2026-07-13T10:47:33.290607
+48883275,Claude Code sends 33k tokens before reading the prompt; OpenCode sends 7k,518,291,2026-07-13T10:47:33.291116
+48884992,"Kode Dot Programmable pocket device for makers, pentesters and geeks",58,16,2026-07-13T10:47:33.291116
+48881967,How we can reduce traffic congestion,106,136,2026-07-13T10:47:33.292125
+48861923,Why write code in 2026,131,170,2026-07-13T10:47:33.292125
+48883238,I Learned to Read Again,119,50,2026-07-13T10:47:33.292125
+48887753,Count Binface,74,16,2026-07-13T10:47:33.293406
+48854168,"Vint Cerf, “father of the Internet”, is retiring",293,168,2026-07-13T10:47:33.293962
+48849983,Are you telling me a readonly property is wrecking my performance?,5,3,2026-07-13T10:47:33.295572
+48882554,Automation Without Understanding,108,45,2026-07-13T10:47:33.296639
+48885705,Why Vanilla JavaScript,108,62,2026-07-13T10:47:33.297168
+48859526,"Guy took Jupiter photo with Game Boy Camera, giant telescope, publishes tutorial",7,2,2026-07-13T10:47:33.297695
+48885138,"Profiling the ""Abundance"" housing bottleneck with real data",35,28,2026-07-13T10:47:33.297695
+48884618,Flash-MSA: Accelerating Million-Token Training with Sparse Attention Kernels,33,2,2026-07-13T10:47:33.298218
+48883090,Mechanistic interpretability researchers applying causality theory to LLMs,94,67,2026-07-13T10:47:33.298768
+48882956,Against Usefulness,96,24,2026-07-13T10:47:33.299289
+48834309,"GhostLock, a stack-UAF that has existed in all Linux distributions for 15 years",165,60,2026-07-13T10:48:33.906128
+48885643,"Cyberpunk Comics, Manga and Graphic Novels",128,34,2026-07-13T10:48:33.907128
+48886741,Ask HN: Add flag for AI-generated articles,287,166,2026-07-13T10:48:33.908131
+48884395,Tiny Emulators,186,11,2026-07-13T10:48:33.908131
+48827126,"So you want to learn physics (second edition, 2021)",142,21,2026-07-13T10:48:33.909376
+48885728,Designing and assembling my first PCB,78,29,2026-07-13T10:48:33.909376
+48831840,"First look at Quest, the final ship of Antarctic explorer Shackleton",17,1,2026-07-13T10:48:33.910464
+48884984,Ask HN: What Are You Working On? (July 2026),106,326,2026-07-13T10:48:33.910464
+48882569,LARP – Revenue infrastructure for serious founders,197,40,2026-07-13T10:48:33.910464
+48883275,Claude Code sends 33k tokens before reading the prompt; OpenCode sends 7k,520,291,2026-07-13T10:48:33.911901
+48882716,"Migrating a production AI agent to GPT-5.6: 2.2x faster, 27% cheaper",171,62,2026-07-13T10:48:33.912803
+48884992,"Kode Dot Programmable pocket device for makers, pentesters and geeks",58,16,2026-07-13T10:48:33.912803
+48881967,How we can reduce traffic congestion,106,136,2026-07-13T10:48:33.913814
+48861923,Why write code in 2026,131,170,2026-07-13T10:48:33.913814
+48883238,I Learned to Read Again,119,50,2026-07-13T10:48:33.914962
+48854168,"Vint Cerf, “father of the Internet”, is retiring",293,168,2026-07-13T10:48:33.915776
+48887753,Count Binface,74,16,2026-07-13T10:48:33.916284
+48849983,Are you telling me a readonly property is wrecking my performance?,6,3,2026-07-13T10:48:33.916819
+48882554,Automation Without Understanding,108,45,2026-07-13T10:48:33.917356
+48885705,Why Vanilla JavaScript,108,62,2026-07-13T10:48:33.917898
+48859526,"Guy took Jupiter photo with Game Boy Camera, giant telescope, publishes tutorial",8,2,2026-07-13T10:48:33.919017
+48885138,"Profiling the ""Abundance"" housing bottleneck with real data",35,28,2026-07-13T10:48:33.919552
+48884618,Flash-MSA: Accelerating Million-Token Training with Sparse Attention Kernels,33,3,2026-07-13T10:48:33.920112
+48883090,Mechanistic interpretability researchers applying causality theory to LLMs,94,67,2026-07-13T10:48:33.920636
+48882956,Against Usefulness,96,24,2026-07-13T10:48:33.921177
+48834309,"GhostLock, a stack-UAF that has existed in all Linux distributions for 15 years",165,60,2026-07-13T10:49:37.660256
+48885643,"Cyberpunk Comics, Manga and Graphic Novels",128,34,2026-07-13T10:49:37.661259
+48886741,Ask HN: Add flag for AI-generated articles,291,168,2026-07-13T10:49:37.662767
+48884395,Tiny Emulators,186,11,2026-07-13T10:49:37.662767
+48827126,"So you want to learn physics (second edition, 2021)",142,21,2026-07-13T10:49:37.662767
+48885728,Designing and assembling my first PCB,79,31,2026-07-13T10:49:37.663901
+48831840,"First look at Quest, the final ship of Antarctic explorer Shackleton",17,1,2026-07-13T10:49:37.663901
+48884984,Ask HN: What Are You Working On? (July 2026),106,326,2026-07-13T10:49:37.663901
+48882569,LARP – Revenue infrastructure for serious founders,197,40,2026-07-13T10:49:37.665406
+48883275,Claude Code sends 33k tokens before reading the prompt; OpenCode sends 7k,521,291,2026-07-13T10:49:37.665406
+48882716,"Migrating a production AI agent to GPT-5.6: 2.2x faster, 27% cheaper",171,62,2026-07-13T10:49:37.666287
+48884992,"Kode Dot Programmable pocket device for makers, pentesters and geeks",58,17,2026-07-13T10:49:37.666797
+48881967,How we can reduce traffic congestion,106,136,2026-07-13T10:49:37.666797
+48861923,Why write code in 2026,131,170,2026-07-13T10:49:37.667838
+48883238,I Learned to Read Again,119,50,2026-07-13T10:49:37.668842
+48854168,"Vint Cerf, “father of the Internet”, is retiring",293,168,2026-07-13T10:49:37.668842
+48887753,Count Binface,74,16,2026-07-13T10:49:37.669733
+48849983,Are you telling me a readonly property is wrecking my performance?,6,3,2026-07-13T10:49:37.670240
+48882554,Automation Without Understanding,108,45,2026-07-13T10:49:37.670776
+48885705,Why Vanilla JavaScript,108,62,2026-07-13T10:49:37.671317
+48859526,"Guy took Jupiter photo with Game Boy Camera, giant telescope, publishes tutorial",8,2,2026-07-13T10:49:37.671854
+48885138,"Profiling the ""Abundance"" housing bottleneck with real data",35,28,2026-07-13T10:49:37.672384
+48884618,Flash-MSA: Accelerating Million-Token Training with Sparse Attention Kernels,33,3,2026-07-13T10:49:37.672923
+48883090,Mechanistic interpretability researchers applying causality theory to LLMs,94,67,2026-07-13T10:49:37.673457
+48882956,Against Usefulness,96,24,2026-07-13T10:49:37.673992
+48834309,"GhostLock, a stack-UAF that has existed in all Linux distributions for 15 years",166,60,2026-07-13T10:50:39.825415
+48885643,"Cyberpunk Comics, Manga and Graphic Novels",130,35,2026-07-13T10:50:39.826412
+48886741,Ask HN: Add flag for AI-generated articles,293,169,2026-07-13T10:50:39.826412
+48884395,Tiny Emulators,187,11,2026-07-13T10:50:39.826412
+48827126,"So you want to learn physics (second edition, 2021)",143,21,2026-07-13T10:50:39.827792
+48885728,Designing and assembling my first PCB,79,31,2026-07-13T10:50:39.827792
+48831840,"First look at Quest, the final ship of Antarctic explorer Shackleton",17,1,2026-07-13T10:50:39.829171
+48884984,Ask HN: What Are You Working On? (July 2026),108,328,2026-07-13T10:50:39.829171
+48882569,LARP – Revenue infrastructure for serious founders,197,40,2026-07-13T10:50:39.829171
+48883275,Claude Code sends 33k tokens before reading the prompt; OpenCode sends 7k,522,291,2026-07-13T10:50:39.830174
+48882716,"Migrating a production AI agent to GPT-5.6: 2.2x faster, 27% cheaper",171,62,2026-07-13T10:50:39.831174
+48884992,"Kode Dot Programmable pocket device for makers, pentesters and geeks",58,17,2026-07-13T10:50:39.831174
+48881967,How we can reduce traffic congestion,106,136,2026-07-13T10:50:39.831896
+48861923,Why write code in 2026,131,170,2026-07-13T10:50:39.831896
+48883238,I Learned to Read Again,119,50,2026-07-13T10:50:39.833251
+48859526,"Guy took Jupiter photo with Game Boy Camera, giant telescope, publishes tutorial",9,2,2026-07-13T10:50:39.833761
+48854168,"Vint Cerf, “father of the Internet”, is retiring",294,168,2026-07-13T10:50:39.834200
+48887753,Count Binface,75,16,2026-07-13T10:50:39.834708
+48885705,Why Vanilla JavaScript,109,62,2026-07-13T10:50:39.835246
+48849983,Are you telling me a readonly property is wrecking my performance?,6,4,2026-07-13T10:50:39.835780
+48882554,Automation Without Understanding,108,45,2026-07-13T10:50:39.836338
+48885138,"Profiling the ""Abundance"" housing bottleneck with real data",35,28,2026-07-13T10:50:39.836902
+48884618,Flash-MSA: Accelerating Million-Token Training with Sparse Attention Kernels,33,3,2026-07-13T10:50:39.837434
+48883090,Mechanistic interpretability researchers applying causality theory to LLMs,94,67,2026-07-13T10:50:39.837980
+48882956,Against Usefulness,96,24,2026-07-13T10:50:39.838523
+48834309,"GhostLock, a stack-UAF that has existed in all Linux distributions for 15 years",169,60,2026-07-13T10:51:46.008382
+48885643,"Cyberpunk Comics, Manga and Graphic Novels",130,35,2026-07-13T10:51:46.008382
+48886741,Ask HN: Add flag for AI-generated articles,295,169,2026-07-13T10:51:46.009379
+48884395,Tiny Emulators,188,11,2026-07-13T10:51:46.009379
+48827126,"So you want to learn physics (second edition, 2021)",143,21,2026-07-13T10:51:46.009379
+48885728,Designing and assembling my first PCB,79,31,2026-07-13T10:51:46.010812
+48831840,"First look at Quest, the final ship of Antarctic explorer Shackleton",17,1,2026-07-13T10:51:46.010812
+48884984,Ask HN: What Are You Working On? (July 2026),108,330,2026-07-13T10:51:46.011817
+48882569,LARP – Revenue infrastructure for serious founders,197,40,2026-07-13T10:51:46.011817
+48883275,Claude Code sends 33k tokens before reading the prompt; OpenCode sends 7k,523,292,2026-07-13T10:51:46.011817
+48882716,"Migrating a production AI agent to GPT-5.6: 2.2x faster, 27% cheaper",171,62,2026-07-13T10:51:46.013232
+48884992,"Kode Dot Programmable pocket device for makers, pentesters and geeks",58,17,2026-07-13T10:51:46.014279
+48881967,How we can reduce traffic congestion,107,136,2026-07-13T10:51:46.014279
+48861923,Why write code in 2026,131,170,2026-07-13T10:51:46.015291
+48883238,I Learned to Read Again,119,50,2026-07-13T10:51:46.015291
+48859526,"Guy took Jupiter photo with Game Boy Camera, giant telescope, publishes tutorial",9,2,2026-07-13T10:51:46.016286
+48854168,"Vint Cerf, “father of the Internet”, is retiring",294,169,2026-07-13T10:51:46.016953
+48887753,Count Binface,75,16,2026-07-13T10:51:46.017461
+48885705,Why Vanilla JavaScript,109,62,2026-07-13T10:51:46.018008
+48849983,Are you telling me a readonly property is wrecking my performance?,6,4,2026-07-13T10:51:46.018558
+48882554,Automation Without Understanding,108,45,2026-07-13T10:51:46.019095
+48885138,"Profiling the ""Abundance"" housing bottleneck with real data",35,28,2026-07-13T10:51:46.019636
+48884618,Flash-MSA: Accelerating Million-Token Training with Sparse Attention Kernels,33,3,2026-07-13T10:51:46.020172
+48883090,Mechanistic interpretability researchers applying causality theory to LLMs,94,67,2026-07-13T10:51:46.020707
+48882956,Against Usefulness,97,24,2026-07-13T10:51:46.021247

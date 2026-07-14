@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>PulseLite</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
+</head>
+<body>
+    <div class="pl-layout">
+
+        <aside class="pl-sidebar">
+            <div class="pl-logo-row">
+                <div class="pl-logo-mark">{{ app_icon }}</div>
+                <div>
+                    <div class="pl-app-name">{{ app_name }}</div>
+                    <div class="pl-app-sub">Control Center</div>
+                </div>
+            </div>
+            <hr>
+            <p><b>⏱ Refresh</b></p>
+            <label><input type="checkbox" id="auto-refresh-toggle"> Auto-refresh</label><br>
+            <label>Interval: <span id="refresh-interval-label">15</span>s</label><br>
+            <input type="range" min="5" max="60" value="15" step="5" id="refresh-interval">
+            <hr>
+            <p><b>🔍 Filters</b></p>
+            <label>Sentiment</label><br>
+            <label><input type="checkbox" class="sentiment-filter" value="positive" checked> Positive</label><br>
+            <label><input type="checkbox" class="sentiment-filter" value="negative" checked> Negative</label><br>
+            <label><input type="checkbox" class="sentiment-filter" value="neutral" checked> Neutral</label><br><br>
+            <label>Search titles</label><br>
+            <input type="text" id="search-box" placeholder="e.g. rust, llm..."><br><br>
+            <label>Minimum HN score: <span id="min-score-label">0</span></label><br>
+            <input type="range" min="0" max="500" value="0" id="min-score"><br>
+            <hr>
+            <details>
+                <summary>🏗️ Architecture</summary>
+                <p>HN API → Kafka → Spark → CSV → Flask</p>
+            </details>
+            <details>
+                <summary>ℹ️ About PulseLite</summary>
+                <p style="font-size:0.85rem;">
+                    PulseLite streams live Hacker News activity through Kafka,
+                    scores sentiment with VADER, and lands aggregates in CSV.
+                    This dashboard adds a derived-intelligence layer on top:
+                    a composite <b>Pulse Score</b>, momentum tracking, and an
+                    independent statistical anomaly overlay.
+                </p>
+            </details>
+        </aside>
+
+        <main class="pl-main">
+            <div class="pl-page-header">
+                <div>
+                    <div class="pl-page-title">{{ app_name }}</div>
+                    <div class="pl-page-subtitle">{{ app_tagline }} · {{ source_label }}</div>
+                </div>
+                <div class="pl-page-meta">
+                    {{ status_badge_html | safe }}
+                    <div class="pl-clock">{{ now_time }}</div>
+                    <div class="pl-clock-label">{{ now_date }}</div>
+                </div>
+            </div>
+
+            {% if digest_html %}
+                {{ digest_html | safe }}
+            {% endif %}
+
+            <div class="pl-kpi-grid pl-kpi-grid-6">
+                {% for card in kpi_cards_html %}
+                    {{ card | safe }}
+                {% endfor %}
+            </div>
+
+            <div class="pl-tabs">
+                <button class="pl-tab-btn active" data-tab="overview">Overview</button>
+                <button class="pl-tab-btn" data-tab="feed">Feed</button>
+                <button class="pl-tab-btn" data-tab="trends">Trends</button>
+                <button class="pl-tab-btn" data-tab="anomalies">Anomalies</button>
+                <button class="pl-tab-btn" data-tab="pipeline">Pipeline</button>
+            </div>
+
+            <div class="pl-tab-content active" id="tab-overview">
+                <div class="pl-grid-2-1">
+                    <div>
+                        <h3>📈 Post Volume Timeline</h3>
+                        <div id="volume-chart" style="width:100%;height:320px;"></div>
+                    </div>
+                    <div>
+                        <h3>🎭 Sentiment Split</h3>
+                        <div id="donut-chart" style="width:100%;height:300px;"></div>
+                    </div>
+                </div>
+                <div class="pl-grid-2-1">
+                    <div>
+                        <h3>🔤 Trending Terms</h3>
+                        <div id="terms-chart" style="width:100%;height:360px;"></div>
+                    </div>
+                    <div>
+                        <h3>💓 Pulse Score</h3>
+                        <div id="pulse-gauge" style="width:100%;height:220px;"></div>
+                        <p style="text-align:center;font-size:0.82rem;color:var(--text-secondary);">
+                            Status: <b>{{ score_label }}</b> · velocity {{ velocity }}/min · {{ breakdown_positive_pct }}% positive mood
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pl-tab-content" id="tab-feed">
+                <h2>Feed</h2>
+                <div id="feed-container">
+                {% for item in feed_items %}
+                    <div class="feed-item" data-title="{{ item.title }}" data-sentiment="{{ item.sentiment }}" data-score="{{ item.score }}">
+                        {{ item.html | safe }}
+                    </div>
+                {% endfor %}
+                </div>
+                <p id="no-results-msg" style="display:none;">No posts match your filters.</p>
+            </div>
+
+            <div class="pl-tab-content" id="tab-trends">
+                <h2>Trends</h2>
+                <h3>📉 Rolling Sentiment</h3>
+                <div id="rolling-chart" style="width:100%;height:320px;"></div>
+
+                <h3>🎯 Engagement Landscape</h3>
+                <div id="scatter-chart" style="width:100%;height:320px;"></div>
+
+                <h3>🏆 Top Engaging Posts</h3>
+                {% for row in leaderboard_html %}
+                    {{ row | safe }}
+                {% endfor %}
+
+                <h3>🗓️ Activity Heatmap</h3>
+                <div id="heatmap-chart" style="width:100%;height:320px;"></div>
+
+                <h3>🌊 Topic Drift Score</h3>
+                {% if drift_available %}
+                    <div class="pl-grid-2-1">
+                        <div id="drift-chart" style="width:100%;height:280px;"></div>
+                        <div>
+                            <div id="drift-gauge" style="width:100%;height:220px;"></div>
+                            <p style="text-align:center;font-weight:700;" class="{{ 'pl-text-negative' if drift_status == 'DRIFTING' else 'pl-text-positive' }}">{{ drift_status }}</p>
+                        </div>
+                    </div>
+                    {% if drift_before_after %}
+                        <h4>🔀 What Changed — Before vs After Drift</h4>
+                        {% for row in drift_before_after %}
+                            <div class="pl-alert-card">
+                                <b>🕐 {{ row.ts }}</b> · Score: <b>{{ row.score }}</b><br><br>
+                                <b style="color:var(--neutral);">BEFORE:</b> {{ row.before }}<br>
+                                <b style="color:var(--brand-end);">AFTER:</b> {{ row.after }}
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                {% else %}
+                    <p>Accumulating drift data — needs 2+ minute windows.</p>
+                {% endif %}
+            </div>
+
+            <div class="pl-tab-content" id="tab-anomalies">
+                <h2>Anomalies</h2>
+                <h3>🚨 Processor-Flagged Alerts</h3>
+                {% if alerts_html %}
+                    {% for card in alerts_html %}
+                        {{ card | safe }}
+                    {% endfor %}
+                    <br>
+                    <a href="/export/alerts"><button>⬇️ Export alerts (CSV)</button></a>
+                {% else %}
+                    <p>✅ No anomalies detected — volume has stayed within normal bounds.</p>
+                {% endif %}
+
+                <h3>📐 Statistical Overlay (z-score)</h3>
+                <div id="zscore-chart" style="width:100%;height:320px;"></div>
+            </div>
+
+            <div class="pl-tab-content" id="tab-pipeline">
+                <h2>Pipeline</h2>
+                <h3>⚙️ Pipeline Components</h3>
+                <div class="pl-pipe-grid">
+                    {% for card in pipeline_cards_html %}
+                        {{ card | safe }}
+                    {% endfor %}
+                </div>
+
+                <h3>🕐 Freshness</h3>
+                <p>Pipeline state: <b>{{ pipeline_state }}</b></p>
+                <p>Minutes since last post: {{ minutes_since_last }}</p>
+                <p>Last post timestamp: <code>{{ last_timestamp }}</code></p>
+
+                <h3>📋 Table Row Counts</h3>
+                <ul>
+                {% for k, v in table_counts.items() %}
+                    <li>{{ k }}: {{ v }}</li>
+                {% endfor %}
+                </ul>
+
+                <h3>🧪 Data Quality</h3>
+                <div class="pl-kpi-grid">
+                    {% for card in quality_cards_html %}
+                        {{ card | safe }}
+                    {% endfor %}
+                </div>
+
+                <h3>📋 Schema Registry</h3>
+                {% if schema_registry and schema_registry.connected %}
+                    <p class="pl-success-banner">✅ Schema Registry is connected</p>
+                    <div class="pl-grid-2-1">
+                        <div>
+                            <p>Registered Subjects: <b>{{ schema_registry.subjects | length }}</b></p>
+                            <p style="font-size:0.78rem;">Subjects: {{ schema_registry.subjects | join(', ') }}</p>
+                        </div>
+                        <div>
+                            <p>Schema Versions: <b>{{ schema_registry.versions or 'N/A' }}</b></p>
+                            <p style="font-size:0.78rem;">Latest schema ID: {{ schema_registry.latest_id or 'N/A' }}</p>
+                        </div>
+                    </div>
+                {% else %}
+                    <p>⚠️ Schema Registry not reachable at localhost:8081</p>
+                {% endif %}
+
+                <h3>🏗️ Architecture</h3>
+                <pre class="pl-diagram">{{ architecture_diagram }}</pre>
+            </div>
+
+            {% if corr_available %}
+            <div class="pl-correlation-section">
+                <h3>🔗 Stream-Stream Join: Trend Correlation</h3>
+                <p class="pl-section-sub">Pearson correlation between HN New Stories vs Top Stories volume</p>
+                <div class="pl-grid-2-1">
+                    <div id="corr-chart" style="width:100%;height:260px;"></div>
+                    <div>
+                        <div id="corr-gauge" style="width:100%;height:220px;"></div>
+                        <p style="text-align:center;font-size:0.85rem;">Correlation label: {{ corr_label }}</p>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </main>
+
+    </div>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+    <script>
+        const plotlyDark = { paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)', font: { color: '#e6e6e6' }, margin: { t: 20 } };
+        const plotlyConfig = { responsive: true, displaylogo: false };
+
+        // Volume timeline
+        const volData = {{ volume_chart_data | safe }};
+        Plotly.newPlot('volume-chart', [
+            { x: volData.x, y: volData.y, type: 'scatter', mode: 'lines', name: 'Posts/min', fill: 'tozeroy', line: { color: '#22d3ee', width: 2.5, shape: 'spline' }, fillcolor: 'rgba(34,211,238,0.10)' },
+            { x: volData.x, y: volData.rolling, type: 'scatter', mode: 'lines', name: 'Rolling avg', line: { color: '#8b5cf6', width: 1.5, dash: 'dot' } },
+            { x: volData.anomaly_x, y: volData.anomaly_y, type: 'scatter', mode: 'markers', name: 'Anomaly', marker: { size: 11, color: '#f43f5e', symbol: 'diamond', line: { width: 1.5, color: 'white' } } }
+        ], { ...plotlyDark, xaxis: { type: 'category' } }, plotlyConfig);
+
+        // Sentiment donut
+        const donut = {{ donut_data | safe }};
+        Plotly.newPlot('donut-chart', [{
+            labels: ['Positive', 'Negative', 'Neutral'], values: [donut.positive, donut.negative, donut.neutral],
+            hole: 0.62, type: 'pie', domain: { x: [0, 1], y: [0, 1] },
+            marker: { colors: ['#22c55e', '#f43f5e', '#60a5fa'] }, textinfo: 'percent'
+        }], { ...plotlyDark, annotations: [{ text: `<b>${donut.index >= 0 ? '+' : ''}${donut.index}</b><br><span style="font-size:10px">mood index</span>`, showarrow: false, font: { color: '#f1f5f9', size: 16 }, x: 0.5, y: 0.5 }] }, plotlyConfig);
+
+        // Trending terms
+        const terms = {{ trending_terms_data | safe }};
+        Plotly.newPlot('terms-chart', [{
+            x: terms.counts, y: terms.words, type: 'bar', orientation: 'h', marker: { color: '#6366f1' }
+        }], { ...plotlyDark, yaxis: { type: 'category' } }, plotlyConfig);
+
+        // Pulse gauge
+        const pulse = {{ pulse_gauge_data | safe }};
+        Plotly.newPlot('pulse-gauge', [{
+            type: 'indicator', mode: 'gauge+number', value: pulse.score,
+            domain: { x: [0, 1], y: [0, 1] },
+            gauge: { axis: { range: [0, 100] }, bar: { color: '#22d3ee' },
+                steps: [{ range: [0, 35], color: 'rgba(244,63,94,0.18)' }, { range: [35, 55], color: 'rgba(245,158,11,0.18)' }, { range: [55, 75], color: 'rgba(96,165,250,0.18)' }, { range: [75, 100], color: 'rgba(34,197,94,0.18)' }] }
+        }], plotlyDark, plotlyConfig);
+
+        // Rolling sentiment
+        const rollingData = {{ rolling_chart_data | safe }};
+        Plotly.newPlot('rolling-chart', [
+            { x: rollingData.timestamps, y: rollingData.sentiment, type: 'scatter', mode: 'markers', name: 'Post sentiment', marker: { size: 5, color: '#888', opacity: 0.5 } },
+            { x: rollingData.timestamps, y: rollingData.rolling, type: 'scatter', mode: 'lines', name: 'Rolling avg', line: { color: '#3b82f6', width: 2.5 } }
+        ], { ...plotlyDark, xaxis: { type: 'category' } }, plotlyConfig);
+
+        // Engagement scatter
+        const scatterData = {{ scatter_chart_data | safe }};
+        const scatterColors = { positive: '#22c55e', negative: '#ef4444', neutral: '#3b82f6' };
+        Plotly.newPlot('scatter-chart', Object.keys(scatterData).map(label => ({
+            x: scatterData[label].x, y: scatterData[label].y, text: scatterData[label].text, type: 'scatter',
+            mode: 'markers', name: label, marker: { size: 8, color: scatterColors[label], opacity: 0.75 }
+        })), { ...plotlyDark, xaxis: { title: 'HN Score' }, yaxis: { title: 'Comments' } }, plotlyConfig);
+
+        // Heatmap
+        const heatmapData = {{ heatmap_data | safe }};
+        if (heatmapData.z.length > 0) {
+            Plotly.newPlot('heatmap-chart', [{ z: heatmapData.z, x: heatmapData.x, y: heatmapData.y, type: 'heatmap', colorscale: [[0, '#1f2430'], [1, '#3b82f6']], showscale: false }], { ...plotlyDark, xaxis: { type: 'category' }, yaxis: { type: 'category' } }, plotlyConfig);
+        }
+
+        // Drift
+        {% if drift_available %}
+        const driftData = {{ drift_chart_data | safe }};
+        Plotly.newPlot('drift-chart', [{ x: driftData.x, y: driftData.y, type: 'scatter', mode: 'lines+markers', fill: 'tozeroy', fillcolor: 'rgba(139,92,246,0.1)', line: { color: '#8b5cf6', width: 2.5 } }], { ...plotlyDark, xaxis: { type: 'category' } }, plotlyConfig);
+        const driftGauge = {{ drift_gauge_data | safe }};
+        Plotly.newPlot('drift-gauge', [{ type: 'indicator', mode: 'gauge+number', value: driftGauge.score,
+            domain: { x: [0, 1], y: [0, 1] },
+            gauge: { axis: { range: [0, 1] }, bar: { color: driftGauge.score < 0.3 ? '#8b5cf6' : '#f43f5e' },
+                steps: [{ range: [0, 0.3], color: 'rgba(34,197,94,0.15)' }, { range: [0.3, 0.6], color: 'rgba(245,158,11,0.15)' }, { range: [0.6, 1], color: 'rgba(244,63,94,0.15)' }] } }], plotlyDark, plotlyConfig);
+        {% endif %}
+
+        // Z-score
+        const zscoreData = {{ zscore_chart_data | safe }};
+        const zColors = zscoreData.y.map(z => Math.abs(z) >= 2 ? '#ef4444' : '#3b82f6');
+        Plotly.newPlot('zscore-chart', [{ x: zscoreData.x, y: zscoreData.y, type: 'bar', marker: { color: zColors } }], { ...plotlyDark, xaxis: { type: 'category' } }, plotlyConfig);
+
+        // Correlation
+        {% if corr_available %}
+        const corrData = {{ corr_chart_data | safe }};
+        Plotly.newPlot('corr-chart', [
+            { x: corrData.x, y: corrData.new_volume, name: 'New Stories', type: 'scatter', mode: 'lines+markers', line: { color: '#22d3ee', width: 2 } },
+            { x: corrData.x, y: corrData.top_volume, name: 'Top Stories', type: 'scatter', mode: 'lines+markers', line: { color: '#f59e0b', width: 2 } }
+        ], { ...plotlyDark, xaxis: { type: 'linear' } }, plotlyConfig);
+        const corrGauge = {{ corr_gauge_data | safe }};
+        Plotly.newPlot('corr-gauge', [{ type: 'indicator', mode: 'gauge+number', value: corrGauge.value,
+            domain: { x: [0, 1], y: [0, 1] },
+            gauge: { axis: { range: [-1, 1] }, bar: { color: corrGauge.value > 0.5 ? '#22d3ee' : corrGauge.value > 0 ? '#f59e0b' : '#f43f5e' },
+                steps: [{ range: [-1, 0], color: 'rgba(244,63,94,0.15)' }, { range: [0, 0.5], color: 'rgba(245,158,11,0.15)' }, { range: [0.5, 1], color: 'rgba(34,197,94,0.15)' }] } }], plotlyDark, plotlyConfig);
+        {% endif %}
+
+        // Resize on window changes (extra safety net alongside responsive:true)
+        window.addEventListener('resize', () => {
+            document.querySelectorAll('[id$="-chart"], [id$="-gauge"]').forEach(el => {
+                if (el && el._fullLayout) Plotly.Plots.resize(el);
+            });
+        });
+    </script>
+</body>
+</html>
