@@ -50,7 +50,7 @@ APP_TAGLINE = "Real-Time Hacker News Intelligence"
 APP_ICON = "🔴"
 AUTHOR = "Dewesh · B.Tech CSE-AIDE · Internship 2026"
 SOURCE_LABEL = "Hacker News"
-PIPELINE = ["Hacker News API", "Kafka", "Stream Processor (VADER)", "DuckDB", "PulseLite"]
+PIPELINE = ["Hacker News API", "Kafka", "Stream Processor (VADER)", "CSV", "PulseLite"]
 
 # --------------------------------------------------------------------------
 # Refresh / freshness thresholds
@@ -1214,7 +1214,7 @@ with st.sidebar:
             _raw(
                 """
                 PulseLite streams live Hacker News activity through Kafka,
-                scores sentiment with VADER, and lands aggregates in DuckDB.
+                scores sentiment with VADER, and lands aggregates in CSV.
                 This dashboard adds a derived-intelligence layer on top:
                 a composite **Pulse Score**, momentum tracking, and an
                 independent statistical anomaly overlay.
@@ -1749,7 +1749,7 @@ def _render_live_dashboard() -> None:
         with p3:
             st.markdown(pipeline_card("🧠", "VADER Processor", stage_status), unsafe_allow_html=True)
         with p4:
-            st.markdown(pipeline_card("🗄️", "DuckDB Store", "Connected" if has_data else "Empty"), unsafe_allow_html=True)
+            st.markdown(pipeline_card("🗄️", "CSV Store", "Connected" if has_data else "Empty"), unsafe_allow_html=True)
 
         st.write("")
         col_g, col_h = st.columns([1, 1])
@@ -1835,7 +1835,7 @@ def _render_live_dashboard() -> None:
         _raw(f"""
         <div class="pl-footer">
             {"⏱ Auto-refreshing every " + str(countdown) + "s" if st.session_state.auto_refresh else "⏸ Auto-refresh paused"}
-            &nbsp;·&nbsp; Built with Streamlit + Plotly + DuckDB
+            &nbsp;·&nbsp; Built with Streamlit + Plotly + CSV
             &nbsp;·&nbsp; <a href="https://github.com/Dewesh10/pulselite" target="_blank">{APP_NAME} on GitHub</a>
             &nbsp;·&nbsp; {AUTHOR}
         </div>

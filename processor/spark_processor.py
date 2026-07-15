@@ -15,7 +15,6 @@ import sys
 
 KAFKA_TOPIC = "hn-posts"
 KAFKA_SERVER = "localhost:9092"
-DB_PATH = "pulselite.db"
 CSV_POSTS = "data_posts.csv"
 CSV_VOLUME = "data_volume.csv"
 CSV_ALERTS = "data_alerts.csv"
