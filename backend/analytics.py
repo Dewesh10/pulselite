@@ -168,7 +168,9 @@ def top_terms(titles: pd.Series, top_n: int = 12, min_len: int = 3) -> list[tupl
 def top_engaging_posts(posts_df: pd.DataFrame, n: int = 8) -> pd.DataFrame:
     if posts_df is None or posts_df.empty:
         return pd.DataFrame()
-    return posts_df.sort_values("engagement", ascending=False).head(n)
+    ranked = posts_df.sort_values("engagement", ascending=False)
+    deduped = ranked.drop_duplicates(subset="title", keep="first")
+    return deduped.head(n)
 
 
 def average_engagement(posts_df: pd.DataFrame) -> float:

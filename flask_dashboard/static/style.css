@@ -496,3 +496,167 @@ a { color: inherit; text-decoration: none; }
     padding-top: 20px;
     border-top: 1px solid var(--border);
 }
+
+/* ---------------------------------------------------------------- */
+/* Sidebar control polish — toggle, sliders, chips, select, footer   */
+/* ---------------------------------------------------------------- */
+
+.pl-refresh-now-btn {
+    width: 100%;
+    margin: 10px 0 4px 0;
+}
+
+.pl-toggle-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 8px 0;
+}
+.pl-switch {
+    position: relative;
+    display: inline-block;
+    width: 38px;
+    height: 20px;
+    flex-shrink: 0;
+}
+.pl-switch input { opacity: 0; width: 0; height: 0; }
+.pl-switch-track {
+    position: absolute;
+    cursor: pointer;
+    inset: 0;
+    background: var(--surface-alt);
+    border: 1px solid var(--border-strong);
+    border-radius: 999px;
+    transition: background 0.18s ease;
+}
+.pl-switch-track::before {
+    content: "";
+    position: absolute;
+    width: 14px; height: 14px;
+    left: 2px; top: 2px;
+    background: var(--text-secondary);
+    border-radius: 50%;
+    transition: transform 0.18s ease, background 0.18s ease;
+}
+.pl-switch input:checked + .pl-switch-track {
+    background: var(--negative);
+    border-color: var(--negative);
+}
+.pl-switch input:checked + .pl-switch-track::before {
+    transform: translateX(18px);
+    background: white;
+}
+
+.pl-sidebar input[type="range"] {
+    -webkit-appearance: none;
+    height: 4px;
+    border-radius: 999px;
+    background: var(--surface-alt);
+    outline: none;
+    margin: 8px 0 4px 0;
+}
+.pl-sidebar input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 15px; height: 15px;
+    border-radius: 50%;
+    background: var(--negative);
+    border: 2px solid var(--bg);
+    cursor: pointer;
+    box-shadow: 0 0 0 3px rgba(244,63,94,0.18);
+}
+.pl-sidebar input[type="range"]::-moz-range-thumb {
+    width: 15px; height: 15px;
+    border-radius: 50%;
+    background: var(--negative);
+    border: 2px solid var(--bg);
+    cursor: pointer;
+}
+.pl-range-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    font-family: 'JetBrains Mono', monospace;
+    margin-bottom: 10px;
+}
+
+.pl-chip-filter-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 8px 0 14px 0;
+}
+.pl-chip-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 9px;
+    border-radius: 999px;
+    font-size: 0.74rem;
+    font-weight: 600;
+    background: var(--negative-soft);
+    color: var(--negative);
+    border: 1px solid rgba(244,63,94,0.3);
+    cursor: pointer;
+    user-select: none;
+    transition: opacity 0.15s ease;
+}
+.pl-chip-tag.off { opacity: 0.35; text-decoration: line-through; }
+.pl-chip-tag .pl-chip-x { font-weight: 800; }
+
+.pl-sidebar select {
+    width: 100%;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 7px 10px;
+    color: var(--text-primary);
+    font-size: 0.82rem;
+    margin-bottom: 10px;
+}
+
+.pl-sidebar-label {
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+    font-weight: 600;
+    margin: 10px 0 2px 0;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+/* ---------------------------------------------------------------- */
+/* Feed pagination + meta                                            */
+/* ---------------------------------------------------------------- */
+.pl-feed-meta {
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    margin-bottom: 14px;
+}
+.pl-pagination {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 16px 0;
+}
+.pl-pagination button {
+    padding: 6px 14px;
+    font-size: 0.8rem;
+}
+.pl-pagination span {
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+}
+
+/* ---------------------------------------------------------------- */
+/* Footer                                                            */
+/* ---------------------------------------------------------------- */
+.pl-footer {
+    margin-top: 40px;
+    padding-top: 18px;
+    border-top: 1px solid var(--border);
+    color: var(--text-muted);
+    font-size: 0.76rem;
+    text-align: center;
+}
+.pl-footer a { color: var(--brand-end); }

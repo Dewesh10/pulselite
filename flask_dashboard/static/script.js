@@ -11,40 +11,128 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     });
 
-    // ---- Feed filters ----
-    const sentimentChecks = document.querySelectorAll(".sentiment-filter");
+    // ---- Sentiment chip filters ----
+    const chipTags = document.querySelectorAll(".pl-chip-tag");
+    function activeSentiments() {
+        return Array.from(chipTags).filter(c => !c.classList.contains("off")).map(c => c.dataset.value);
+    }
+    chipTags.forEach(chip => {
+        chip.addEventListener("click", () => {
+            chip.classList.toggle("off");
+            applyFilters();
+        });
+    });
+
+    // ---- Feed filters, sort, rows-limit, pagination ----
     const searchBox = document.getElementById("search-box");
     const minScoreSlider = document.getElementById("min-score");
     const minScoreLabel = document.getElementById("min-score-label");
-    const feedItems = document.querySelectorAll(".feed-item");
+    const sortSelect = document.getElementById("sort-feed-by");
+    const rowsLimitSlider = document.getElementById("rows-limit");
+    const rowsLimitLabel = document.getElementById("rows-limit-label");
+    const feedContainer = document.getElementById("feed-container");
+    const allFeedItems = Array.from(document.querySelectorAll(".feed-item"));
     const noResultsMsg = document.getElementById("no-results-msg");
+    const feedMetaText = document.getElementById("feed-meta-text");
+    const feedPageLabel = document.getElementById("feed-page-label");
+    const feedPrevBtn = document.getElementById("feed-prev-btn");
+    const feedNextBtn = document.getElementById("feed-next-btn");
+    const PAGE_SIZE = 20;
+    let currentPage = 1;
 
-    function applyFilters() {
-        const activeSentiments = Array.from(sentimentChecks).filter(c => c.checked).map(c => c.value);
+    function getFilteredSorted() {
+        const sentiments = activeSentiments();
         const searchTerm = searchBox.value.toLowerCase().trim();
         const minScore = parseInt(minScoreSlider.value, 10);
-        minScoreLabel.textContent = minScore;
+        const rowsLimit = parseInt(rowsLimitSlider.value, 10);
 
-        let visibleCount = 0;
-        feedItems.forEach(item => {
-            const matchesSentiment = activeSentiments.includes(item.dataset.sentiment);
+        let items = allFeedItems.slice(0, rowsLimit).filter(item => {
+            const matchesSentiment = sentiments.includes(item.dataset.sentiment);
             const matchesSearch = !searchTerm || item.dataset.title.includes(searchTerm);
             const matchesScore = parseInt(item.dataset.score, 10) >= minScore;
-            const visible = matchesSentiment && matchesSearch && matchesScore;
-            item.style.display = visible ? "" : "none";
-            if (visible) visibleCount++;
+            return matchesSentiment && matchesSearch && matchesScore;
         });
-        noResultsMsg.style.display = visibleCount === 0 ? "block" : "none";
+
+        const sortBy = sortSelect.value;
+        if (sortBy === "newest") {
+            items.sort((a, b) => b.dataset.timestamp.localeCompare(a.dataset.timestamp));
+        } else if (sortBy === "oldest") {
+            items.sort((a, b) => a.dataset.timestamp.localeCompare(b.dataset.timestamp));
+        } else if (sortBy === "score") {
+            items.sort((a, b) => parseInt(b.dataset.score, 10) - parseInt(a.dataset.score, 10));
+        } else if (sortBy === "comments") {
+            items.sort((a, b) => parseInt(b.dataset.comments, 10) - parseInt(a.dataset.comments, 10));
+        }
+        return items;
     }
 
-    sentimentChecks.forEach(c => c.addEventListener("change", applyFilters));
+    function applyFilters() {
+        minScoreLabel.textContent = minScoreSlider.value;
+        rowsLimitLabel.textContent = rowsLimitSlider.value;
+        currentPage = 1;
+        renderFeedPage();
+    }
+
+    function renderFeedPage() {
+        allFeedItems.forEach(item => item.style.display = "none");
+        const filtered = getFilteredSorted();
+        const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+        if (currentPage > totalPages) currentPage = totalPages;
+
+        const start = (currentPage - 1) * PAGE_SIZE;
+        const pageItems = filtered.slice(start, start + PAGE_SIZE);
+
+        pageItems.forEach(item => {
+            item.style.display = "";
+            feedContainer.appendChild(item);
+        });
+
+        noResultsMsg.style.display = filtered.length === 0 ? "block" : "none";
+        feedMetaText.textContent = `${filtered.length} posts match current filters · sorted by ${sortSelect.options[sortSelect.selectedIndex].text.toLowerCase()}`;
+        feedPageLabel.textContent = `Page ${currentPage} of ${totalPages}`;
+        feedPrevBtn.disabled = currentPage <= 1;
+        feedNextBtn.disabled = currentPage >= totalPages;
+    }
+
     searchBox.addEventListener("input", applyFilters);
     minScoreSlider.addEventListener("input", applyFilters);
+    sortSelect.addEventListener("change", applyFilters);
+    rowsLimitSlider.addEventListener("input", applyFilters);
+    feedPrevBtn.addEventListener("click", () => { currentPage--; renderFeedPage(); });
+    feedNextBtn.addEventListener("click", () => { currentPage++; renderFeedPage(); });
+
+    renderFeedPage();
+
+    // ---- Feed CSV export (client-side, respects current filters) ----
+    const feedExportBtn = document.getElementById("feed-export-btn");
+    feedExportBtn.addEventListener("click", () => {
+        const filtered = getFilteredSorted();
+        const rows = [["title", "sentiment", "score", "comments", "timestamp"]];
+        filtered.forEach(item => {
+            rows.push([
+                item.dataset.title.replace(/"/g, '""'),
+                item.dataset.sentiment,
+                item.dataset.score,
+                item.dataset.comments,
+                item.dataset.timestamp
+            ]);
+        });
+        const csv = rows.map(r => r.map(v => `"${v}"`).join(",")).join("\n");
+        const blob = new Blob([csv], { type: "text/csv" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "pulselite_feed.csv";
+        a.click();
+        URL.revokeObjectURL(url);
+    });
 
     // ---- Auto-refresh ----
     const autoRefreshToggle = document.getElementById("auto-refresh-toggle");
     const refreshIntervalSlider = document.getElementById("refresh-interval");
     const refreshIntervalLabel = document.getElementById("refresh-interval-label");
+    const footerInterval = document.getElementById("footer-interval");
+    const refreshNowBtn = document.getElementById("refresh-now-btn");
     let refreshTimer = null;
 
     function startAutoRefresh() {
@@ -62,6 +150,8 @@ document.addEventListener("DOMContentLoaded", () => {
     });
     refreshIntervalSlider.addEventListener("input", () => {
         refreshIntervalLabel.textContent = refreshIntervalSlider.value;
+        if (footerInterval) footerInterval.textContent = refreshIntervalSlider.value;
         if (autoRefreshToggle.checked) startAutoRefresh();
     });
+    refreshNowBtn.addEventListener("click", () => window.location.reload());
 });

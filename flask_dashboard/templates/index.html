@@ -19,19 +19,37 @@
             </div>
             <hr>
             <p><b>⏱ Refresh</b></p>
-            <label><input type="checkbox" id="auto-refresh-toggle"> Auto-refresh</label><br>
-            <label>Interval: <span id="refresh-interval-label">15</span>s</label><br>
-            <input type="range" min="5" max="60" value="15" step="5" id="refresh-interval">
+            <div class="pl-toggle-row">
+                <label class="pl-switch">
+                    <input type="checkbox" id="auto-refresh-toggle">
+                    <span class="pl-switch-track"></span>
+                </label>
+                <label for="auto-refresh-toggle" style="cursor:pointer;">Auto-refresh</label>
+            </div>
+            <label>Interval: <span id="refresh-interval-label">15</span>s</label>
+            <input type="range" min="5" max="90" value="15" step="5" id="refresh-interval">
+            <button class="pl-refresh-now-btn" id="refresh-now-btn" type="button">🔄 Refresh now</button>
             <hr>
             <p><b>🔍 Filters</b></p>
-            <label>Sentiment</label><br>
-            <label><input type="checkbox" class="sentiment-filter" value="positive" checked> Positive</label><br>
-            <label><input type="checkbox" class="sentiment-filter" value="negative" checked> Negative</label><br>
-            <label><input type="checkbox" class="sentiment-filter" value="neutral" checked> Neutral</label><br><br>
-            <label>Search titles</label><br>
-            <input type="text" id="search-box" placeholder="e.g. rust, llm..."><br><br>
-            <label>Minimum HN score: <span id="min-score-label">0</span></label><br>
-            <input type="range" min="0" max="500" value="0" id="min-score"><br>
+            <div class="pl-sidebar-label">Sentiment</div>
+            <div class="pl-chip-filter-row" id="sentiment-chip-row">
+                <span class="pl-chip-tag" data-value="positive">Positive <span class="pl-chip-x">×</span></span>
+                <span class="pl-chip-tag" data-value="negative">Negative <span class="pl-chip-x">×</span></span>
+                <span class="pl-chip-tag" data-value="neutral">Neutral <span class="pl-chip-x">×</span></span>
+            </div>
+            <div class="pl-sidebar-label">Search titles</div>
+            <input type="text" id="search-box" placeholder="e.g. rust, llm...">
+            <div class="pl-sidebar-label" style="margin-top:12px;">Minimum HN score: <span id="min-score-label">0</span></div>
+            <input type="range" min="0" max="500" value="0" id="min-score">
+            <div class="pl-sidebar-label">Sort live feed by</div>
+            <select id="sort-feed-by">
+                <option value="newest">Newest</option>
+                <option value="oldest">Oldest</option>
+                <option value="score">Highest score</option>
+                <option value="comments">Most comments</option>
+            </select>
+            <div class="pl-sidebar-label">Rows to analyze: <span id="rows-limit-label">400</span></div>
+            <input type="range" min="50" max="400" value="400" step="50" id="rows-limit">
             <hr>
             <details>
                 <summary>🏗️ Architecture</summary>
@@ -108,14 +126,21 @@
 
             <div class="pl-tab-content" id="tab-feed">
                 <h2>Feed</h2>
+                <div class="pl-feed-meta" id="feed-meta-text">{{ feed_total }} posts loaded · sorted by newest</div>
                 <div id="feed-container">
                 {% for item in feed_items %}
-                    <div class="feed-item" data-title="{{ item.title }}" data-sentiment="{{ item.sentiment }}" data-score="{{ item.score }}">
+                    <div class="feed-item" data-title="{{ item.title }}" data-sentiment="{{ item.sentiment }}" data-score="{{ item.score }}" data-comments="{{ item.comments }}" data-timestamp="{{ item.timestamp }}">
                         {{ item.html | safe }}
                     </div>
                 {% endfor %}
                 </div>
                 <p id="no-results-msg" style="display:none;">No posts match your filters.</p>
+                <div class="pl-pagination">
+                    <button id="feed-prev-btn" type="button">← Prev</button>
+                    <span id="feed-page-label">Page 1</span>
+                    <button id="feed-next-btn" type="button">Next →</button>
+                </div>
+                <button id="feed-export-btn" type="button">⬇️ Export filtered feed (CSV)</button>
             </div>
 
             <div class="pl-tab-content" id="tab-trends">
@@ -156,6 +181,20 @@
                 {% else %}
                     <p>Accumulating drift data — needs 2+ minute windows.</p>
                 {% endif %}
+
+                {% if corr_available %}
+                <div class="pl-correlation-section">
+                    <h3>🔗 Stream-Stream Join: Trend Correlation</h3>
+                    <p class="pl-section-sub">Pearson correlation between HN New Stories vs Top Stories volume</p>
+                    <div class="pl-grid-2-1">
+                        <div id="corr-chart" style="width:100%;height:260px;"></div>
+                        <div>
+                            <div id="corr-gauge" style="width:100%;height:220px;"></div>
+                            <p style="text-align:center;font-size:0.85rem;">Correlation label: {{ corr_label }}</p>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
             </div>
 
             <div class="pl-tab-content" id="tab-anomalies">
@@ -166,7 +205,7 @@
                         {{ card | safe }}
                     {% endfor %}
                     <br>
-                    <a href="/export/alerts"><button>⬇️ Export alerts (CSV)</button></a>
+                    <a href="/export/alerts"><button type="button">⬇️ Export alerts (CSV)</button></a>
                 {% else %}
                     <p>✅ No anomalies detected — volume has stayed within normal bounds.</p>
                 {% endif %}
@@ -224,19 +263,10 @@
                 <pre class="pl-diagram">{{ architecture_diagram }}</pre>
             </div>
 
-            {% if corr_available %}
-            <div class="pl-correlation-section">
-                <h3>🔗 Stream-Stream Join: Trend Correlation</h3>
-                <p class="pl-section-sub">Pearson correlation between HN New Stories vs Top Stories volume</p>
-                <div class="pl-grid-2-1">
-                    <div id="corr-chart" style="width:100%;height:260px;"></div>
-                    <div>
-                        <div id="corr-gauge" style="width:100%;height:220px;"></div>
-                        <p style="text-align:center;font-size:0.85rem;">Correlation label: {{ corr_label }}</p>
-                    </div>
-                </div>
+            <div class="pl-footer">
+                Auto-refreshing every <span id="footer-interval">15</span>s · Built with Flask + Plotly ·
+                <a href="https://github.com/Dewesh10/pulselite" target="_blank">PulseLite on GitHub</a> · Dewesh · B.Tech CSE-AIDE · Internship 2026
             </div>
-            {% endif %}
         </main>
 
     </div>
@@ -252,7 +282,7 @@
             { x: volData.x, y: volData.y, type: 'scatter', mode: 'lines', name: 'Posts/min', fill: 'tozeroy', line: { color: '#22d3ee', width: 2.5, shape: 'spline' }, fillcolor: 'rgba(34,211,238,0.10)' },
             { x: volData.x, y: volData.rolling, type: 'scatter', mode: 'lines', name: 'Rolling avg', line: { color: '#8b5cf6', width: 1.5, dash: 'dot' } },
             { x: volData.anomaly_x, y: volData.anomaly_y, type: 'scatter', mode: 'markers', name: 'Anomaly', marker: { size: 11, color: '#f43f5e', symbol: 'diamond', line: { width: 1.5, color: 'white' } } }
-        ], { ...plotlyDark, xaxis: { type: 'category' } }, plotlyConfig);
+        ], { ...plotlyDark, xaxis: { type: 'date', tickformat: '%H:%M', nticks: 8, tickangle: 0 } }, plotlyConfig);
 
         // Sentiment donut
         const donut = {{ donut_data | safe }};
@@ -282,7 +312,7 @@
         Plotly.newPlot('rolling-chart', [
             { x: rollingData.timestamps, y: rollingData.sentiment, type: 'scatter', mode: 'markers', name: 'Post sentiment', marker: { size: 5, color: '#888', opacity: 0.5 } },
             { x: rollingData.timestamps, y: rollingData.rolling, type: 'scatter', mode: 'lines', name: 'Rolling avg', line: { color: '#3b82f6', width: 2.5 } }
-        ], { ...plotlyDark, xaxis: { type: 'category' } }, plotlyConfig);
+        ], { ...plotlyDark, xaxis: { type: 'date', tickformat: '%H:%M', nticks: 8, tickangle: 0 } }, plotlyConfig);
 
         // Engagement scatter
         const scatterData = {{ scatter_chart_data | safe }};
@@ -301,7 +331,7 @@
         // Drift
         {% if drift_available %}
         const driftData = {{ drift_chart_data | safe }};
-        Plotly.newPlot('drift-chart', [{ x: driftData.x, y: driftData.y, type: 'scatter', mode: 'lines+markers', fill: 'tozeroy', fillcolor: 'rgba(139,92,246,0.1)', line: { color: '#8b5cf6', width: 2.5 } }], { ...plotlyDark, xaxis: { type: 'category' } }, plotlyConfig);
+        Plotly.newPlot('drift-chart', [{ x: driftData.x, y: driftData.y, type: 'scatter', mode: 'lines+markers', fill: 'tozeroy', fillcolor: 'rgba(139,92,246,0.1)', line: { color: '#8b5cf6', width: 2.5 } }], { ...plotlyDark, xaxis: { type: 'date', tickformat: '%H:%M', nticks: 8, tickangle: 0 } }, plotlyConfig);
         const driftGauge = {{ drift_gauge_data | safe }};
         Plotly.newPlot('drift-gauge', [{ type: 'indicator', mode: 'gauge+number', value: driftGauge.score,
             domain: { x: [0, 1], y: [0, 1] },
@@ -312,7 +342,7 @@
         // Z-score
         const zscoreData = {{ zscore_chart_data | safe }};
         const zColors = zscoreData.y.map(z => Math.abs(z) >= 2 ? '#ef4444' : '#3b82f6');
-        Plotly.newPlot('zscore-chart', [{ x: zscoreData.x, y: zscoreData.y, type: 'bar', marker: { color: zColors } }], { ...plotlyDark, xaxis: { type: 'category' } }, plotlyConfig);
+        Plotly.newPlot('zscore-chart', [{ x: zscoreData.x, y: zscoreData.y, type: 'bar', marker: { color: zColors } }], { ...plotlyDark, xaxis: { type: 'date', tickformat: '%H:%M', nticks: 8, tickangle: 0 } }, plotlyConfig);
 
         // Correlation
         {% if corr_available %}

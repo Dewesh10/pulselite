@@ -121,7 +121,7 @@ def home():
     pulse_gauge_data = {"score": score}
 
     # ---- Feed ----
-    feed_posts = posts.sort_values("timestamp_dt", ascending=False).head(20)
+    feed_posts = posts.sort_values("timestamp_dt", ascending=False).head(400)
     feed_items = [
         {
             "html": post_card(
@@ -132,9 +132,12 @@ def home():
             "title": str(row["title"]).lower(),
             "sentiment": row["sentiment_label"],
             "score": int(row["score"]),
+            "comments": int(row["comments"]),
+            "timestamp": str(row["timestamp"]),
         }
         for _, row in feed_posts.iterrows()
     ]
+    feed_total = len(feed_items)
 
     # ---- Trends ----
     leaders = top_engaging_posts(posts, n=6)
@@ -227,6 +230,7 @@ def home():
         pulse_gauge_data=json.dumps(pulse_gauge_data),
         score_label=score_label, velocity=velocity, breakdown_positive_pct=breakdown.positive_pct,
         feed_items=feed_items,
+        feed_total=feed_total,
         leaderboard_html=leaderboard_html,
         rolling_chart_data=json.dumps(rolling_chart_data),
         scatter_chart_data=json.dumps(scatter_chart_data),

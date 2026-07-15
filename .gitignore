@@ -5,3 +5,10 @@ __pycache__/
 *.db
 *.db.snap
 *.db.dash
+data_posts.csv
+data_volume.csv
+data_alerts.csv
+data_drift.csv
+data_correlation.csv
+data_top.csv
+data_digest.csv

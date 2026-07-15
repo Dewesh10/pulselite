@@ -123,16 +123,37 @@ def generate_demo_data(hours_back=3):
 
     print("✅ Generated anomaly alerts")
 
-    # Generate drift data
+    # Generate drift data — before/after titles are now derived from
+    # the actual posts in each window instead of hardcoded strings,
+    # so each row reflects what was really trending at that time.
     with open("demo_data/data_drift.csv", "w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
         writer.writerow(["timestamp", "drift_score", "sample_title", "before_titles", "after_titles"])
-        drift_time = start_time
+        drift_time = start_time + timedelta(minutes=4)  # need a window before us
         while drift_time < now:
             score = 0.1 + 0.3 * abs(math.sin(drift_time.minute / 10))
             score += random.uniform(-0.05, 0.05)
-            before = "OpenAI releases GPT-5 | DeepMind breakthrough | AI coding assistant"
-            after = "Bitcoin hits ATH | Crypto winter | DeFi protocol hacked"
+
+            before_window_start = drift_time - timedelta(minutes=4)
+            before_window_end = drift_time - timedelta(minutes=2)
+            after_window_start = drift_time - timedelta(minutes=2)
+            after_window_end = drift_time
+
+            before_titles_pool = [
+                p["title"] for p in posts
+                if before_window_start.isoformat() <= p["timestamp"] < before_window_end.isoformat()
+            ]
+            after_titles_pool = [
+                p["title"] for p in posts
+                if after_window_start.isoformat() <= p["timestamp"] < after_window_end.isoformat()
+            ]
+
+            before_unique = list(dict.fromkeys(before_titles_pool))[:3]
+            after_unique = list(dict.fromkeys(after_titles_pool))[:3]
+
+            before = " | ".join(before_unique) if before_unique else "(no posts in window)"
+            after = " | ".join(after_unique) if after_unique else "(no posts in window)"
+
             writer.writerow([drift_time.isoformat(), round(score, 4), random.choice(DEMO_TITLES)[:80], before, after])
             drift_time += timedelta(minutes=2)
 
