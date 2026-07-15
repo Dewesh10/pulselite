@@ -21,6 +21,20 @@ PulseLite ingests Hacker News in real time through Kafka and surfaces:
 - 💓 **Pulse Score** — a single 0–100 composite index blending velocity, sentiment, and stability
 - ⚙️ **Pipeline health** — schema registry status, table row counts, data quality checks, freshness/liveness badge
 
+## Two dashboards, one pipeline
+
+The Kafka pipeline, stream processor, and all backend logic are shared and
+untouched. Only the presentation layer differs:
+
+| | **Streamlit** (`dashboard/`) | **Flask** (`flask_dashboard/`) |
+|---|---|---|
+| Status | Original build, deployed live | Newer rebuild, same feature set |
+| Best for | Quick public demo (hosted, zero setup) | Local walkthroughs, more control over UI |
+| Run command | `streamlit run dashboard/app.py` | `python flask_dashboard/app.py` |
+
+Both read from the same CSV files produced by the pipeline, so whichever one
+you run, it reflects the same live (or demo) data.
+
 ## Architecture
 
 ```mermaid
@@ -44,13 +58,20 @@ graph LR
     PROC -->|Sentence embeddings| CSV4[data_drift.csv]
     JOIN -->|Pearson correlation| CSV5[data_correlation.csv]
 
-    CSV1 --> DASH[Streamlit Dashboard\ndashboard/app.py]
-    CSV2 --> DASH
-    CSV3 --> DASH
-    CSV4 --> DASH
-    CSV5 --> DASH
+    CSV1 --> DASH1[Streamlit Dashboard\ndashboard/app.py]
+    CSV2 --> DASH1
+    CSV3 --> DASH1
+    CSV4 --> DASH1
+    CSV5 --> DASH1
 
-    DASH -->|Live URL| USER[👤 User]
+    CSV1 --> DASH2[Flask Dashboard\nflask_dashboard/app.py]
+    CSV2 --> DASH2
+    CSV3 --> DASH2
+    CSV4 --> DASH2
+    CSV5 --> DASH2
+
+    DASH1 -->|Live URL| USER[👤 User]
+    DASH2 -->|Local URL| USER
 ```
 
 Full component-by-component breakdown: [`docs/architecture.md`](docs/architecture.md)
@@ -68,7 +89,7 @@ Full component-by-component breakdown: [`docs/architecture.md`](docs/architectur
 | Stream join | Python + NumPy | Cross-topic correlation (see [ADR-005](docs/adr/adr-005-stream-join.md)) |
 | Narrative summary | Anthropic API (Claude Haiku) | LLM-generated Pulse Digest, rule-based fallback if no key (see [ADR-006](docs/adr/adr-006-pulse-digest.md)) |
 | Storage | CSV | Lock-free handoff between processor and dashboard, no concurrent-writer issues |
-| Dashboard | Streamlit + Plotly | Python-native, live auto-refresh via `st_autorefresh` |
+| Dashboards | Streamlit + Plotly, and Flask + Plotly | Two front ends over the same backend — see comparison above |
 | CI | GitHub Actions | Runs the test suite on every push |
 | Containers | Docker Compose | Runs Kafka + Zookeeper + Schema Registry without manual install |
 | Deployment | Streamlit Cloud | Public demo |
@@ -100,25 +121,33 @@ python processor/stream_join.py
 # it uses a rule-based fallback automatically — see .env.example
 python processor/digest_generator.py
 
-# 8. Terminal 6 — dashboard
+# 8. Terminal 6 — pick a dashboard:
+
+# Streamlit
 streamlit run dashboard/app.py
+
+# OR Flask
+$env:DEMO_MODE="false"
+python flask_dashboard/app.py
 ```
 
 ### Demo Mode (no pipeline required)
 
-Don't want to spin up Kafka just to look around? The dashboard ships with a
+Don't want to spin up Kafka just to look around? Both dashboards support a
 replay mode using a pre-recorded snapshot — timestamps are shifted to "now"
 on every load, so it always looks live even if you run it weeks from now.
 
 ```powershell
 $env:DEMO_MODE="true"
 streamlit run dashboard/app.py
+# or
+python flask_dashboard/app.py
 ```
 
 > The hosted Streamlit Cloud demo runs in Demo Mode, since Cloud only hosts
 > the dashboard script — it can't run Kafka/producers/processors in the
 > background. Run locally with the full pipeline above to see real,
-> currently-streaming data.
+> currently-streaming data on either dashboard.
 
 ## Testing
 
@@ -140,6 +169,7 @@ content, and CSV output). Runs automatically on every push via GitHub Actions.
 - ✅ Pulse Digest — LLM-generated narrative summary with rule-based fallback
 - ✅ CSV storage — lock-free handoff
 - ✅ Streamlit dashboard — 5 tabs (Overview, Live Feed, Trends & Analytics, Anomalies, Pipeline Health) + Demo Mode
+- ✅ Flask dashboard — feature parity with Streamlit version, same 5 sections + Demo Mode
 - ✅ CI — automated test suite on every push
 
 ## Architecture Decision Records
@@ -154,7 +184,6 @@ content, and CSV output). Runs automatically on every push via GitHub Actions.
 Also see [`docs/design_doc.md`](docs/design_doc.md) for the original problem
 statement and [`docs/learning-notes.md`](docs/learning-notes.md) for what
 actually broke along the way.
-
 
 ## Author
 
