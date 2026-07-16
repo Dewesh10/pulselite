@@ -4,7 +4,7 @@ import time
 import fastavro
 import io
 import struct
-from datetime import datetime
+from datetime import datetime, timezone
 from confluent_kafka import Producer
 import signal
 import sys
@@ -24,8 +24,12 @@ ITEM_URL = "https://hacker-news.firebaseio.com/v0/item/{}.json"
 KAFKA_TOPIC = "hn-posts"
 KAFKA_SERVER = "localhost:9092"
 SCHEMA_REGISTRY_URL = "http://localhost:8081"
+DEAD_LETTER_FILE = "dead_letters_producer.jsonl"
 
 producer = Producer({"bootstrap.servers": KAFKA_SERVER})
+
+# Tracks post IDs already sent this run, so we don't resend on every 30s poll
+seen_ids = set()
 
 # Load Avro schema
 with open("schemas/post_v1.avsc", "r") as f:
@@ -81,10 +85,43 @@ def fetch_posts(limit=25):
         return []
     posts = []
     for sid in story_ids[:limit]:
+        if sid in seen_ids:
+            continue  # already sent, skip
         item = fetch_with_retry(ITEM_URL.format(sid))
         if item and "title" in item:
             posts.append(item)
     return posts
+
+
+def produce_with_retry(topic, value, key, retries=3, backoff=2):
+    """Produce to Kafka with retry. Returns True on success, False if it never succeeded."""
+    for attempt in range(retries):
+        try:
+            producer.produce(topic, value=value, key=key)
+            producer.poll(0)
+            return True
+        except BufferError:
+            # local queue full, give it a moment and retry
+            wait = backoff ** attempt
+            print(f"⚠️ Kafka local queue full, retrying in {wait}s...")
+            time.sleep(wait)
+        except Exception as e:
+            print(f"⚠️ Kafka produce failed ({e}), attempt {attempt + 1}/{retries}")
+            time.sleep(backoff ** attempt)
+    return False
+
+
+def dead_letter(post, reason):
+    """Log a message that couldn't be processed/sent, instead of silently dropping it."""
+    entry = {
+        "id": post.get("id"),
+        "title": post.get("title", ""),
+        "reason": reason,
+        "failed_at": datetime.now(timezone.utc).isoformat()
+    }
+    with open(DEAD_LETTER_FILE, "a") as f:
+        f.write(json.dumps(entry) + "\n")
+    print(f"  ⚠️ Dead-lettered post {post.get('id')}: {reason}")
 
 
 def main():
@@ -107,25 +144,35 @@ def main():
     schema_id = register_schema()
 
     while True:
-        print(f"\n[{datetime.now().strftime('%H:%M:%S')}] Fetching posts...")
+        print(f"\n[{datetime.now(timezone.utc).strftime('%H:%M:%S')} UTC] Fetching posts...")
         posts = fetch_posts()
-        print(f"Fetched {len(posts)} posts — sending as Avro...")
+        print(f"Fetched {len(posts)} new posts — sending as Avro...")
 
         for post in posts:
-            record = {
-                "id": post.get("id"),
-                "title": post.get("title", ""),
-                "score": post.get("score", 0),
-                "comments": post.get("descendants", 0),
-                "timestamp": datetime.now().isoformat(),
-                "ingested_at": datetime.utcnow().isoformat()
-            }
-            avro_bytes = serialize_avro(record, schema_id)
-            producer.produce(KAFKA_TOPIC, value=avro_bytes)
-            print(f"  ✓ Sent (Avro): {post['title'][:60]}")
+            try:
+                now_utc = datetime.now(timezone.utc).isoformat()
+                record = {
+                    "id": post.get("id"),
+                    "title": post.get("title", ""),
+                    "score": post.get("score", 0),
+                    "comments": post.get("descendants", 0),
+                    "timestamp": now_utc,
+                    "ingested_at": now_utc
+                }
+                avro_bytes = serialize_avro(record, schema_id)
+            except Exception as e:
+                dead_letter(post, f"serialization error: {e}")
+                continue
+
+            success = produce_with_retry(KAFKA_TOPIC, value=avro_bytes, key=str(post["id"]))
+            if success:
+                seen_ids.add(post["id"])
+                print(f"  ✓ Sent (Avro): {post['title'][:60]}")
+            else:
+                dead_letter(post, "kafka produce failed after retries")
 
         producer.flush()
-        print(f"All posts sent. Waiting 30 seconds...")
+        print(f"Batch done. Waiting 30 seconds...")
         time.sleep(30)
 
 

@@ -8,7 +8,7 @@ import numpy as np
 from confluent_kafka import Consumer
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 from sentence_transformers import SentenceTransformer
-from datetime import datetime
+from datetime import datetime, timezone
 import signal
 import sys
 
@@ -18,28 +18,27 @@ KAFKA_SERVER = "localhost:9092"
 CSV_POSTS = "data_posts.csv"
 CSV_VOLUME = "data_volume.csv"
 CSV_ALERTS = "data_alerts.csv"
+DEAD_LETTER_FILE = "dead_letters_processor.jsonl"
 
 analyzer = SentimentIntensityAnalyzer()
 embedder = SentenceTransformer("all-MiniLM-L6-v2")
-# Load Avro schema for deserialization
 with open("schemas/post_v1.avsc", "r") as f:
     SCHEMA = fastavro.parse_schema(json.load(f))
 
 
 def deserialize_avro(raw_bytes):
-    """Deserialize Confluent Avro format message."""
     try:
         buf = io.BytesIO(raw_bytes)
         magic = buf.read(1)
         if magic != b'\x00':
-            # Fall back to JSON for backward compatibility
             return json.loads(raw_bytes.decode("utf-8"))
-        schema_id = struct.unpack('>I', buf.read(4))[0]
+        struct.unpack('>I', buf.read(4))[0]
         record = fastavro.schemaless_reader(buf, SCHEMA)
         return record
     except Exception:
-        # Fall back to JSON
         return json.loads(raw_bytes.decode("utf-8"))
+
+
 seen_ids = set()
 
 
@@ -113,10 +112,11 @@ def check_anomaly(minute_bucket, current_minute, current_count):
         return
     avg = sum(counts[-5:]) / len(counts[-5:])
     if current_count > 3 * avg:
-        now = datetime.now().isoformat()
+        now = datetime.now(timezone.utc).isoformat()
         with open(CSV_ALERTS, "a", newline="", encoding="utf-8") as f:
             csv.writer(f).writerow([now, current_count, round(avg, 2)])
         print(f"🚨 ANOMALY DETECTED! Count: {current_count}, Avg: {avg:.1f}")
+
 
 def compute_drift(current_window_titles, previous_window_titles, sample_title):
     if len(current_window_titles) < 3 or len(previous_window_titles) < 3:
@@ -133,16 +133,26 @@ def compute_drift(current_window_titles, previous_window_titles, sample_title):
     )
     drift_score = round(float(1 - similarity), 4)
 
-    # Save top 3 titles from each window for before/after comparison
     before_titles = " | ".join(previous_window_titles[:3])
     after_titles = " | ".join(current_window_titles[:3])
 
-    now = datetime.now().isoformat()
+    now = datetime.now(timezone.utc).isoformat()
     with open("data_drift.csv", "a", newline="", encoding="utf-8") as f:
         csv.writer(f).writerow([now, drift_score, sample_title[:80], before_titles[:200], after_titles[:200]])
 
     if drift_score > 0.3:
         print(f"🌊 TOPIC DRIFT DETECTED! Score: {drift_score:.3f}")
+
+
+def dead_letter(raw_value, reason):
+    entry = {
+        "reason": reason,
+        "failed_at": datetime.now(timezone.utc).isoformat(),
+        "raw_preview": str(raw_value)[:200]
+    }
+    with open(DEAD_LETTER_FILE, "a") as f:
+        f.write(json.dumps(entry) + "\n")
+    print(f"  ⚠️ Dead-lettered message: {reason}")
 
 
 def main():
@@ -155,9 +165,11 @@ def main():
     consumer = Consumer({
         "bootstrap.servers": KAFKA_SERVER,
         "group.id": "pulselite-processor",
-        "auto.offset.reset": "earliest"
+        "auto.offset.reset": "earliest",
+        "enable.auto.commit": False  # we commit manually, only after processing succeeds
     })
     consumer.subscribe([KAFKA_TOPIC])
+
     def shutdown_handler(sig, frame):
         print("\n⚡ Shutting down processor gracefully...")
         consumer.close()
@@ -172,40 +184,58 @@ def main():
 
     while True:
         msg = consumer.poll(1.0)
-        if msg is None or msg.error():
+        if msg is None:
+            continue
+        if msg.error():
+            print(f"⚠️ Kafka error: {msg.error()}")
             continue
 
-        post = deserialize_avro(msg.value())
-        title = post.get("title", "")
-        post_id = post.get("id")
-        score, label = get_sentiment(title)
+        try:
+            post = deserialize_avro(msg.value())
+            title = post.get("title", "")
+            post_id = post.get("id")
 
-        save_post(post_id, title, post.get("score", 0), post.get("comments", 0), score, label, post.get("timestamp"))
+            if post_id is None or not title:
+                dead_letter(msg.value(), "missing id or title after deserialization")
+                consumer.commit(msg)
+                continue
 
-        minute = datetime.now().strftime("%Y-%m-%d %H:%M")
-        minute_bucket[minute] = minute_bucket.get(minute, 0) + 1
-        count = minute_bucket[minute]
+            score, label = get_sentiment(title)
 
-        update_volume(minute_bucket, minute)
-        check_anomaly(minute_bucket, minute, count)
+            save_post(post_id, title, post.get("score", 0), post.get("comments", 0), score, label, post.get("timestamp"))
 
-        # Track titles per minute window for drift detection
-        if minute not in minute_titles:
-            minute_titles[minute] = []
-        minute_titles[minute].append(title)
+            minute = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M")
+            minute_bucket[minute] = minute_bucket.get(minute, 0) + 1
+            count = minute_bucket[minute]
 
-        # Compute drift every minute when we have 2 windows
-        all_minutes = sorted(minute_titles.keys())
-        if len(all_minutes) >= 2:
-            current_min = all_minutes[-1]
-            previous_min = all_minutes[-2]
-            compute_drift(
-                minute_titles[current_min],
-                minute_titles[previous_min],
-                title
-            )
+            update_volume(minute_bucket, minute)
+            check_anomaly(minute_bucket, minute, count)
 
-        print(f"  [{label.upper()}] {title[:55]} (score: {score:.2f})")
+            if minute not in minute_titles:
+                minute_titles[minute] = []
+            minute_titles[minute].append(title)
+
+            all_minutes = sorted(minute_titles.keys())
+            if len(all_minutes) >= 2:
+                current_min = all_minutes[-1]
+                previous_min = all_minutes[-2]
+                compute_drift(
+                    minute_titles[current_min],
+                    minute_titles[previous_min],
+                    title
+                )
+
+            print(f"  [{label.upper()}] {title[:55]} (score: {score:.2f})")
+
+            # Only commit the offset once we've fully processed this message.
+            # If the process crashes before this line, this message gets
+            # reprocessed on restart instead of being silently lost.
+            consumer.commit(msg)
+
+        except Exception as e:
+            dead_letter(msg.value(), f"processing error: {e}")
+            consumer.commit(msg)  # don't get stuck retrying a permanently broken message
+            continue
 
 
 if __name__ == "__main__":
