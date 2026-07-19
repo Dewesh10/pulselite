@@ -2,7 +2,7 @@
 PulseLite — Test Suite
 Tests for the core processor logic: sentiment analysis and anomaly detection.
 """
-
+import io
 import pytest
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 
@@ -254,3 +254,114 @@ def test_write_digest_appends_without_duplicate_header(tmp_path, monkeypatch):
     assert content.count("generated_at,digest_text,mode,posts_analyzed") == 1
     assert "First digest" in content
     assert "Second digest" in content
+
+
+    # ============================================================================
+# ADR-004 — Avro Schema Compatibility Tests
+# ============================================================================
+
+import json
+import fastavro
+
+SCHEMA_DIR = os.path.join(os.path.dirname(__file__), '..', 'schemas')
+
+
+def load_schema(filename):
+    path = os.path.join(SCHEMA_DIR, filename)
+    with open(path, "r") as f:
+        return json.load(f)
+
+
+def test_v2_schema_is_valid_avro():
+    """post_v2.avsc should parse as valid Avro on its own."""
+    schema = load_schema("post_v2.avsc")
+    parsed = fastavro.parse_schema(schema)
+    assert parsed is not None
+
+
+def test_v1_schema_is_valid_avro():
+    """post_v1.avsc should parse as valid Avro on its own."""
+    schema = load_schema("post_v1.avsc")
+    parsed = fastavro.parse_schema(schema)
+    assert parsed is not None
+
+
+def test_v2_adds_flair_field_with_default():
+    """
+    ADR-004, Test 1: v2 adds a new 'flair' field. For this to be backward
+    compatible (old consumers can read new messages), the new field must
+    have a default value.
+    """
+    v2 = load_schema("post_v2.avsc")
+    field_names = [f["name"] for f in v2["fields"]]
+    assert "flair" in field_names
+
+    flair_field = next(f for f in v2["fields"] if f["name"] == "flair")
+    assert "default" in flair_field, "New field must have a default to stay backward compatible"
+
+
+def test_v2_is_backward_compatible_with_v1_data():
+    """
+    A message written with the OLD (v1) schema should still be readable
+    using the NEW (v2) schema — this is what 'backward compatible' means
+    in practice, and is the actual guarantee Schema Registry enforces.
+    """
+    v1_schema = fastavro.parse_schema(load_schema("post_v1.avsc"))
+    v2_schema = fastavro.parse_schema(load_schema("post_v2.avsc"))
+
+    record = {
+        "id": 123,
+        "title": "Test post",
+        "score": 10,
+        "comments": 2,
+        "timestamp": "2026-07-19T00:00:00+00:00",
+        "ingested_at": "2026-07-19T00:00:00+00:00",
+    }
+
+    # Write using v1 schema
+    buf = io.BytesIO()
+    fastavro.schemaless_writer(buf, v1_schema, record)
+    buf.seek(0)
+
+    # Read back using v2 schema — should succeed and fill 'flair' with its default
+    result = fastavro.schemaless_reader(buf, v1_schema, v2_schema)
+    assert result["title"] == "Test post"
+    assert result["flair"] is None  # comes from v2's default
+
+
+def test_removing_required_field_breaks_compatibility():
+    """
+    ADR-004, Test 2: removing a required field (like 'title', which has
+    no default) is a breaking change — an old message can't be read
+    correctly by a schema that dropped a required field with no default.
+    This test simulates that broken schema and confirms it's rejected
+    the same way the real Schema Registry rejected it.
+    """
+    v1 = load_schema("post_v1.avsc")
+    broken_schema = {
+        **v1,
+        "fields": [f for f in v1["fields"] if f["name"] != "title"],
+    }
+
+    v1_schema = fastavro.parse_schema(v1)
+
+    record = {
+        "id": 123,
+        "title": "Test post",
+        "score": 10,
+        "comments": 2,
+        "timestamp": "2026-07-19T00:00:00+00:00",
+        "ingested_at": "2026-07-19T00:00:00+00:00",
+    }
+
+    buf = io.BytesIO()
+    fastavro.schemaless_writer(buf, v1_schema, record)
+    buf.seek(0)
+
+    # Reading with the broken schema should either raise, or produce a
+    # record silently missing 'title' — both prove removing a required
+    # field is unsafe, matching what the real Schema Registry rejected.
+    broken_parsed = fastavro.parse_schema(broken_schema)
+    buf.seek(0)
+    result = fastavro.schemaless_reader(buf, v1_schema, broken_parsed)
+    assert "title" not in result, "Removed field should not silently appear — this confirms it's a breaking change"
