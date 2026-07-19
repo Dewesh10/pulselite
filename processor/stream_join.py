@@ -7,7 +7,7 @@ tumbling windows and computes Pearson correlation of volume.
 import csv
 import os
 import time
-from datetime import datetime, timedelta
+from datetime import datetime
 from collections import defaultdict
 import numpy as np
 
@@ -19,10 +19,15 @@ CSV_CORRELATION = "data_correlation.csv"
 def init_correlation_csv():
     if not os.path.exists(CSV_CORRELATION):
         with open(CSV_CORRELATION, "w", newline="", encoding="utf-8") as f:
-            csv.writer(f).writerow([
-                "window_start", "window_end",
-                "new_volume", "top_volume", "correlation"
-            ])
+            csv.writer(f).writerow(
+                [
+                    "window_start",
+                    "window_end",
+                    "new_volume",
+                    "top_volume",
+                    "correlation",
+                ]
+            )
 
 
 def load_volume_by_minute(csv_path):
@@ -75,19 +80,20 @@ def compute_correlation(new_counts, top_counts):
         recent_minutes[-1],
         new_vols,
         top_vols,
-        round(correlation, 4)
+        round(correlation, 4),
     )
 
 
 def save_correlation(window_start, window_end, new_vol, top_vol, corr):
     with open(CSV_CORRELATION, "a", newline="", encoding="utf-8") as f:
-        csv.writer(f).writerow([
-            window_start, window_end,
-            sum(new_vol), sum(top_vol), corr
-        ])
-    print(f"📊 Window [{window_start} → {window_end}] | "
-          f"New: {sum(new_vol)} | Top: {sum(top_vol)} | "
-          f"Correlation: {corr:.4f}")
+        csv.writer(f).writerow(
+            [window_start, window_end, sum(new_vol), sum(top_vol), corr]
+        )
+    print(
+        f"📊 Window [{window_start} → {window_end}] | "
+        f"New: {sum(new_vol)} | Top: {sum(top_vol)} | "
+        f"Correlation: {corr:.4f}"
+    )
 
 
 def main():
@@ -106,7 +112,9 @@ def main():
             window_start, window_end, new_vol, top_vol, corr = result
             save_correlation(window_start, window_end, new_vol, top_vol, corr)
         else:
-            print(f"[{datetime.now().strftime('%H:%M:%S')}] Accumulating data for join...")
+            print(
+                f"[{datetime.now().strftime('%H:%M:%S')}] Accumulating data for join..."
+            )
 
         time.sleep(60)  # Run every minute
 

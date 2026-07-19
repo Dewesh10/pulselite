@@ -9,11 +9,13 @@ from confluent_kafka import Producer
 import signal
 import sys
 
+
 def shutdown_handler(sig, frame):
     print("\n⚡ Shutting down producer gracefully...")
     producer.flush()
     print("✅ All messages flushed. Goodbye.")
     sys.exit(0)
+
 
 signal.signal(signal.SIGINT, shutdown_handler)
 signal.signal(signal.SIGTERM, shutdown_handler)
@@ -43,7 +45,7 @@ def register_schema():
     response = requests.post(
         f"{SCHEMA_REGISTRY_URL}/subjects/{KAFKA_TOPIC}-value/versions",
         headers={"Content-Type": "application/vnd.schemaregistry.v1+json"},
-        json={"schema": schema_str}
+        json={"schema": schema_str},
     )
     if response.status_code in [200, 201]:
         schema_id = response.json()["id"]
@@ -57,8 +59,8 @@ def register_schema():
 def serialize_avro(record, schema_id):
     """Serialize record to Confluent Avro format (magic byte + schema ID + avro bytes)."""
     buf = io.BytesIO()
-    buf.write(b'\x00')  # magic byte
-    buf.write(struct.pack('>I', schema_id))  # 4-byte schema ID
+    buf.write(b"\x00")  # magic byte
+    buf.write(struct.pack(">I", schema_id))  # 4-byte schema ID
     fastavro.schemaless_writer(buf, SCHEMA, record)
     return buf.getvalue()
 
@@ -71,7 +73,7 @@ def fetch_with_retry(url, retries=3, backoff=2):
             return response.json()
         except Exception as e:
             if attempt < retries - 1:
-                wait = backoff ** attempt
+                wait = backoff**attempt
                 print(f"⚠️ Request failed ({e}), retrying in {wait}s...")
                 time.sleep(wait)
             else:
@@ -102,12 +104,12 @@ def produce_with_retry(topic, value, key, retries=3, backoff=2):
             return True
         except BufferError:
             # local queue full, give it a moment and retry
-            wait = backoff ** attempt
+            wait = backoff**attempt
             print(f"⚠️ Kafka local queue full, retrying in {wait}s...")
             time.sleep(wait)
         except Exception as e:
             print(f"⚠️ Kafka produce failed ({e}), attempt {attempt + 1}/{retries}")
-            time.sleep(backoff ** attempt)
+            time.sleep(backoff**attempt)
     return False
 
 
@@ -117,7 +119,7 @@ def dead_letter(post, reason):
         "id": post.get("id"),
         "title": post.get("title", ""),
         "reason": reason,
-        "failed_at": datetime.now(timezone.utc).isoformat()
+        "failed_at": datetime.now(timezone.utc).isoformat(),
     }
     with open(DEAD_LETTER_FILE, "a") as f:
         f.write(json.dumps(entry) + "\n")
@@ -144,7 +146,9 @@ def main():
     schema_id = register_schema()
 
     while True:
-        print(f"\n[{datetime.now(timezone.utc).strftime('%H:%M:%S')} UTC] Fetching posts...")
+        print(
+            f"\n[{datetime.now(timezone.utc).strftime('%H:%M:%S')} UTC] Fetching posts..."
+        )
         posts = fetch_posts()
         print(f"Fetched {len(posts)} new posts — sending as Avro...")
 
@@ -157,14 +161,16 @@ def main():
                     "score": post.get("score", 0),
                     "comments": post.get("descendants", 0),
                     "timestamp": now_utc,
-                    "ingested_at": now_utc
+                    "ingested_at": now_utc,
                 }
                 avro_bytes = serialize_avro(record, schema_id)
             except Exception as e:
                 dead_letter(post, f"serialization error: {e}")
                 continue
 
-            success = produce_with_retry(KAFKA_TOPIC, value=avro_bytes, key=str(post["id"]))
+            success = produce_with_retry(
+                KAFKA_TOPIC, value=avro_bytes, key=str(post["id"])
+            )
             if success:
                 seen_ids.add(post["id"])
                 print(f"  ✓ Sent (Avro): {post['title'][:60]}")
@@ -172,7 +178,7 @@ def main():
                 dead_letter(post, "kafka produce failed after retries")
 
         producer.flush()
-        print(f"Batch done. Waiting 30 seconds...")
+        print("Batch done. Waiting 30 seconds...")
         time.sleep(30)
 
 

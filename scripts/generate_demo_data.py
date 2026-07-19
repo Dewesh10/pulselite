@@ -77,22 +77,35 @@ def generate_demo_data(hours_back=3):
         for _ in range(volume):
             title = random.choice(DEMO_TITLES)
             sentiment_label, sentiment_score = random.choice(SENTIMENTS)
-            posts.append({
-                "id": post_id,
-                "title": title,
-                "score": random.randint(1, 300),
-                "comments": random.randint(0, 150),
-                "sentiment": sentiment_score + random.uniform(-0.05, 0.05),
-                "sentiment_label": sentiment_label,
-                "timestamp": current_time.isoformat()
-            })
+            posts.append(
+                {
+                    "id": post_id,
+                    "title": title,
+                    "score": random.randint(1, 300),
+                    "comments": random.randint(0, 150),
+                    "sentiment": sentiment_score + random.uniform(-0.05, 0.05),
+                    "sentiment_label": sentiment_label,
+                    "timestamp": current_time.isoformat(),
+                }
+            )
             post_id += 1
 
         current_time += timedelta(minutes=1)
 
     # Write posts CSV
     with open("demo_data/data_posts.csv", "w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=["id", "title", "score", "comments", "sentiment", "sentiment_label", "timestamp"])
+        writer = csv.DictWriter(
+            f,
+            fieldnames=[
+                "id",
+                "title",
+                "score",
+                "comments",
+                "sentiment",
+                "sentiment_label",
+                "timestamp",
+            ],
+        )
         writer.writeheader()
         writer.writerows(posts)
 
@@ -128,7 +141,15 @@ def generate_demo_data(hours_back=3):
     # so each row reflects what was really trending at that time.
     with open("demo_data/data_drift.csv", "w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
-        writer.writerow(["timestamp", "drift_score", "sample_title", "before_titles", "after_titles"])
+        writer.writerow(
+            [
+                "timestamp",
+                "drift_score",
+                "sample_title",
+                "before_titles",
+                "after_titles",
+            ]
+        )
         drift_time = start_time + timedelta(minutes=4)  # need a window before us
         while drift_time < now:
             score = 0.1 + 0.3 * abs(math.sin(drift_time.minute / 10))
@@ -140,21 +161,37 @@ def generate_demo_data(hours_back=3):
             after_window_end = drift_time
 
             before_titles_pool = [
-                p["title"] for p in posts
-                if before_window_start.isoformat() <= p["timestamp"] < before_window_end.isoformat()
+                p["title"]
+                for p in posts
+                if before_window_start.isoformat()
+                <= p["timestamp"]
+                < before_window_end.isoformat()
             ]
             after_titles_pool = [
-                p["title"] for p in posts
-                if after_window_start.isoformat() <= p["timestamp"] < after_window_end.isoformat()
+                p["title"]
+                for p in posts
+                if after_window_start.isoformat()
+                <= p["timestamp"]
+                < after_window_end.isoformat()
             ]
 
             before_unique = list(dict.fromkeys(before_titles_pool))[:3]
             after_unique = list(dict.fromkeys(after_titles_pool))[:3]
 
-            before = " | ".join(before_unique) if before_unique else "(no posts in window)"
+            before = (
+                " | ".join(before_unique) if before_unique else "(no posts in window)"
+            )
             after = " | ".join(after_unique) if after_unique else "(no posts in window)"
 
-            writer.writerow([drift_time.isoformat(), round(score, 4), random.choice(DEMO_TITLES)[:80], before, after])
+            writer.writerow(
+                [
+                    drift_time.isoformat(),
+                    round(score, 4),
+                    random.choice(DEMO_TITLES)[:80],
+                    before,
+                    after,
+                ]
+            )
             drift_time += timedelta(minutes=2)
 
     print("✅ Generated drift scores")
@@ -162,17 +199,23 @@ def generate_demo_data(hours_back=3):
     # Generate correlation data
     with open("demo_data/data_correlation.csv", "w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
-        writer.writerow(["window_start", "window_end", "new_volume", "top_volume", "correlation"])
+        writer.writerow(
+            ["window_start", "window_end", "new_volume", "top_volume", "correlation"]
+        )
         corr_time = start_time
         while corr_time < now - timedelta(minutes=12):
             new_vol = random.randint(30, 80)
             top_vol = random.randint(20, 60)
             corr = random.uniform(-0.4, 0.8)
-            writer.writerow([
-                corr_time.isoformat(),
-                (corr_time + timedelta(minutes=12)).isoformat(),
-                new_vol, top_vol, round(corr, 4)
-            ])
+            writer.writerow(
+                [
+                    corr_time.isoformat(),
+                    (corr_time + timedelta(minutes=12)).isoformat(),
+                    new_vol,
+                    top_vol,
+                    round(corr, 4),
+                ]
+            )
             corr_time += timedelta(minutes=5)
 
     print("✅ Generated correlation data")

@@ -2,8 +2,8 @@
 PulseLite — Test Suite
 Tests for the core processor logic: sentiment analysis and anomaly detection.
 """
+
 import io
-import pytest
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 
 
@@ -27,7 +27,9 @@ def get_sentiment(text):
 
 def test_positive_sentiment():
     """Clearly positive headline should be classified as positive."""
-    score, label = get_sentiment("Amazing breakthrough in AI research — incredible results")
+    score, label = get_sentiment(
+        "Amazing breakthrough in AI research — incredible results"
+    )
     assert label == "positive"
     assert score > 0.05
 
@@ -62,6 +64,7 @@ def test_sentiment_score_range():
 # ============================================================================
 # Anomaly Detection Tests
 # ============================================================================
+
 
 def check_anomaly(current_count, historical_counts):
     """Mirror of the anomaly logic in spark_processor.py"""
@@ -105,6 +108,7 @@ def test_anomaly_just_above_boundary():
     current = 31  # just above 3x
     assert check_anomaly(current, historical) is True
 
+
 # ============================================================================
 # Producer Tests (mocked HN API)
 # ============================================================================
@@ -116,14 +120,16 @@ def test_fetch_with_retry_success():
     """fetch_with_retry should return data on successful request."""
     import sys
     import os
-    sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'producer'))
-    
+
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "producer"))
+
     mock_response = MagicMock()
     mock_response.json.return_value = [1, 2, 3, 4, 5]
     mock_response.raise_for_status.return_value = None
 
-    with patch('requests.get', return_value=mock_response):
+    with patch("requests.get", return_value=mock_response):
         from reddit_producer import fetch_with_retry
+
         result = fetch_with_retry("http://fake-url.com")
         assert result == [1, 2, 3, 4, 5]
 
@@ -132,10 +138,12 @@ def test_fetch_with_retry_failure():
     """fetch_with_retry should return None after all retries fail."""
     import sys
     import os
-    sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'producer'))
 
-    with patch('requests.get', side_effect=Exception("Connection error")):
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "producer"))
+
+    with patch("requests.get", side_effect=Exception("Connection error")):
         from reddit_producer import fetch_with_retry
+
         result = fetch_with_retry("http://fake-url.com", retries=2, backoff=0)
         assert result is None
 
@@ -159,7 +167,8 @@ def test_sentiment_mixed_signals():
 
 import sys
 import os
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'processor'))
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "processor"))
 import digest_generator as dg
 
 
@@ -176,9 +185,14 @@ def test_gather_stats_no_data(tmp_path, monkeypatch):
 def test_fallback_digest_no_data():
     """Fallback digest should tell the reader nothing's tracked yet, not crash."""
     stats = {
-        "total_posts": 0, "velocity": 0.0, "sentiment_positive_pct": 0.0,
-        "sentiment_negative_pct": 0.0, "top_posts": [], "recent_anomaly": None,
-        "latest_correlation": None, "top_drift": None,
+        "total_posts": 0,
+        "velocity": 0.0,
+        "sentiment_positive_pct": 0.0,
+        "sentiment_negative_pct": 0.0,
+        "top_posts": [],
+        "recent_anomaly": None,
+        "latest_correlation": None,
+        "top_drift": None,
     }
     text = dg.generate_fallback_digest(stats)
     assert "waiting" in text.lower() or "no posts" in text.lower()
@@ -187,10 +201,14 @@ def test_fallback_digest_no_data():
 def test_fallback_digest_with_data():
     """Fallback digest should cite real numbers from the stats it's given."""
     stats = {
-        "total_posts": 500, "velocity": 4.2, "sentiment_positive_pct": 60.0,
+        "total_posts": 500,
+        "velocity": 4.2,
+        "sentiment_positive_pct": 60.0,
         "sentiment_negative_pct": 10.0,
         "top_posts": [{"title": "Test Story", "score": 200, "comments": 50}],
-        "recent_anomaly": None, "latest_correlation": None, "top_drift": None,
+        "recent_anomaly": None,
+        "latest_correlation": None,
+        "top_drift": None,
     }
     text = dg.generate_fallback_digest(stats)
     assert "500" in text
@@ -201,10 +219,14 @@ def test_fallback_digest_with_data():
 def test_fallback_digest_includes_anomaly():
     """When an anomaly is active, the fallback digest should mention it."""
     stats = {
-        "total_posts": 100, "velocity": 10.0, "sentiment_positive_pct": 30.0,
-        "sentiment_negative_pct": 30.0, "top_posts": [],
+        "total_posts": 100,
+        "velocity": 10.0,
+        "sentiment_positive_pct": 30.0,
+        "sentiment_negative_pct": 30.0,
+        "top_posts": [],
         "recent_anomaly": {"post_count": 25.0, "rolling_avg": 5.0},
-        "latest_correlation": None, "top_drift": None,
+        "latest_correlation": None,
+        "top_drift": None,
     }
     text = dg.generate_fallback_digest(stats)
     assert "anomaly" in text.lower()
@@ -214,9 +236,14 @@ def test_generate_llm_digest_no_api_key(monkeypatch):
     """Without ANTHROPIC_API_KEY set, should return None (triggering fallback), not raise."""
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     stats = {
-        "total_posts": 10, "velocity": 1.0, "sentiment_positive_pct": 50.0,
-        "sentiment_negative_pct": 10.0, "top_posts": [], "recent_anomaly": None,
-        "latest_correlation": None, "top_drift": None,
+        "total_posts": 10,
+        "velocity": 1.0,
+        "sentiment_positive_pct": 50.0,
+        "sentiment_negative_pct": 10.0,
+        "top_posts": [],
+        "recent_anomaly": None,
+        "latest_correlation": None,
+        "top_drift": None,
     }
     result = dg.generate_llm_digest(stats)
     assert result is None
@@ -226,9 +253,14 @@ def test_generate_digest_falls_back_without_key(monkeypatch):
     """generate_digest should always return a usable (text, mode) pair."""
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     stats = {
-        "total_posts": 10, "velocity": 1.0, "sentiment_positive_pct": 50.0,
-        "sentiment_negative_pct": 10.0, "top_posts": [], "recent_anomaly": None,
-        "latest_correlation": None, "top_drift": None,
+        "total_posts": 10,
+        "velocity": 1.0,
+        "sentiment_positive_pct": 50.0,
+        "sentiment_negative_pct": 10.0,
+        "top_posts": [],
+        "recent_anomaly": None,
+        "latest_correlation": None,
+        "top_drift": None,
     }
     text, mode = dg.generate_digest(stats)
     assert mode == "fallback"
@@ -255,15 +287,16 @@ def test_write_digest_appends_without_duplicate_header(tmp_path, monkeypatch):
     assert "First digest" in content
     assert "Second digest" in content
 
-
     # ============================================================================
+
+
 # ADR-004 — Avro Schema Compatibility Tests
 # ============================================================================
 
 import json
 import fastavro
 
-SCHEMA_DIR = os.path.join(os.path.dirname(__file__), '..', 'schemas')
+SCHEMA_DIR = os.path.join(os.path.dirname(__file__), "..", "schemas")
 
 
 def load_schema(filename):
@@ -297,7 +330,9 @@ def test_v2_adds_flair_field_with_default():
     assert "flair" in field_names
 
     flair_field = next(f for f in v2["fields"] if f["name"] == "flair")
-    assert "default" in flair_field, "New field must have a default to stay backward compatible"
+    assert (
+        "default" in flair_field
+    ), "New field must have a default to stay backward compatible"
 
 
 def test_v2_is_backward_compatible_with_v1_data():
@@ -364,4 +399,6 @@ def test_removing_required_field_breaks_compatibility():
     broken_parsed = fastavro.parse_schema(broken_schema)
     buf.seek(0)
     result = fastavro.schemaless_reader(buf, v1_schema, broken_parsed)
-    assert "title" not in result, "Removed field should not silently appear — this confirms it's a breaking change"
+    assert (
+        "title" not in result
+    ), "Removed field should not silently appear — this confirms it's a breaking change"

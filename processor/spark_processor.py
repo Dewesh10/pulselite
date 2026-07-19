@@ -35,9 +35,9 @@ def deserialize_avro(raw_bytes):
     try:
         buf = io.BytesIO(raw_bytes)
         magic = buf.read(1)
-        if magic != b'\x00':
+        if magic != b"\x00":
             return json.loads(raw_bytes.decode("utf-8"))
-        struct.unpack('>I', buf.read(4))[0]
+        struct.unpack(">I", buf.read(4))[0]
         record = fastavro.schemaless_reader(buf, SCHEMA)
         return record
     except Exception:
@@ -60,7 +60,18 @@ def get_sentiment(text):
 def init_csvs():
     if not os.path.exists(CSV_POSTS):
         with open(CSV_POSTS, "w", newline="", encoding="utf-8") as f:
-            csv.writer(f).writerow(["id", "title", "score", "comments", "sentiment", "sentiment_label", "timestamp", "processed_at"])
+            csv.writer(f).writerow(
+                [
+                    "id",
+                    "title",
+                    "score",
+                    "comments",
+                    "sentiment",
+                    "sentiment_label",
+                    "timestamp",
+                    "processed_at",
+                ]
+            )
     if not os.path.exists(CSV_VOLUME):
         with open(CSV_VOLUME, "w", newline="", encoding="utf-8") as f:
             csv.writer(f).writerow(["minute", "post_count"])
@@ -69,7 +80,15 @@ def init_csvs():
             csv.writer(f).writerow(["timestamp", "post_count", "rolling_avg"])
     if not os.path.exists("data_drift.csv"):
         with open("data_drift.csv", "w", newline="", encoding="utf-8") as f:
-            csv.writer(f).writerow(["timestamp", "drift_score", "sample_title", "before_titles", "after_titles"])
+            csv.writer(f).writerow(
+                [
+                    "timestamp",
+                    "drift_score",
+                    "sample_title",
+                    "before_titles",
+                    "after_titles",
+                ]
+            )
 
 
 def save_post(post_id, title, hn_score, comments, sentiment, label, timestamp):
@@ -78,7 +97,18 @@ def save_post(post_id, title, hn_score, comments, sentiment, label, timestamp):
     seen_ids.add(post_id)
     processed_at = datetime.now(timezone.utc).isoformat()
     with open(CSV_POSTS, "a", newline="", encoding="utf-8") as f:
-        csv.writer(f).writerow([post_id, title, hn_score, comments, sentiment, label, timestamp, processed_at])
+        csv.writer(f).writerow(
+            [
+                post_id,
+                title,
+                hn_score,
+                comments,
+                sentiment,
+                label,
+                timestamp,
+                processed_at,
+            ]
+        )
 
 
 def update_volume(minute_bucket, minute):
@@ -87,7 +117,7 @@ def update_volume(minute_bucket, minute):
     if os.path.exists(CSV_VOLUME):
         with open(CSV_VOLUME, "r", encoding="utf-8") as f:
             reader = csv.reader(f)
-            header = next(reader)
+            next(reader)  # skip header row
             for row in reader:
                 if row and row[0] == minute:
                     rows.append([minute, minute_bucket[minute]])
@@ -112,7 +142,7 @@ def check_anomaly(minute_bucket, current_minute, current_count):
                 if row and row[0] != current_minute:
                     try:
                         counts.append(int(row[1]))
-                    except:
+                    except (ValueError, IndexError):
                         pass
     if len(counts) < 3:
         return
@@ -123,6 +153,7 @@ def check_anomaly(minute_bucket, current_minute, current_count):
             csv.writer(f).writerow([now, current_count, round(avg, 2)])
         print(f"🚨 ANOMALY DETECTED! Count: {current_count}, Avg: {avg:.1f}")
         send_discord_alert(current_count, avg, now)
+
 
 def send_discord_alert(current_count, avg, timestamp):
     """Post an anomaly alert to Discord, if a webhook URL is configured."""
@@ -140,6 +171,7 @@ def send_discord_alert(current_count, avg, timestamp):
         requests.post(DISCORD_WEBHOOK_URL, json=message, timeout=5)
     except Exception as e:
         print(f"⚠️ Failed to send Discord alert: {e}")
+
 
 def compute_drift(current_window_titles, previous_window_titles, sample_title):
     if len(current_window_titles) < 3 or len(previous_window_titles) < 3:
@@ -161,7 +193,15 @@ def compute_drift(current_window_titles, previous_window_titles, sample_title):
 
     now = datetime.now(timezone.utc).isoformat()
     with open("data_drift.csv", "a", newline="", encoding="utf-8") as f:
-        csv.writer(f).writerow([now, drift_score, sample_title[:80], before_titles[:200], after_titles[:200]])
+        csv.writer(f).writerow(
+            [
+                now,
+                drift_score,
+                sample_title[:80],
+                before_titles[:200],
+                after_titles[:200],
+            ]
+        )
 
     if drift_score > 0.3:
         print(f"🌊 TOPIC DRIFT DETECTED! Score: {drift_score:.3f}")
@@ -171,7 +211,7 @@ def dead_letter(raw_value, reason):
     entry = {
         "reason": reason,
         "failed_at": datetime.now(timezone.utc).isoformat(),
-        "raw_preview": str(raw_value)[:200]
+        "raw_preview": str(raw_value)[:200],
     }
     with open(DEAD_LETTER_FILE, "a") as f:
         f.write(json.dumps(entry) + "\n")
@@ -185,12 +225,14 @@ def main():
 
     init_csvs()
 
-    consumer = Consumer({
-        "bootstrap.servers": KAFKA_SERVER,
-        "group.id": "pulselite-processor",
-        "auto.offset.reset": "earliest",
-        "enable.auto.commit": False  # we commit manually, only after processing succeeds
-    })
+    consumer = Consumer(
+        {
+            "bootstrap.servers": KAFKA_SERVER,
+            "group.id": "pulselite-processor",
+            "auto.offset.reset": "earliest",
+            "enable.auto.commit": False,  # we commit manually, only after processing succeeds
+        }
+    )
     consumer.subscribe([KAFKA_TOPIC])
 
     def shutdown_handler(sig, frame):
@@ -225,7 +267,15 @@ def main():
 
             score, label = get_sentiment(title)
 
-            save_post(post_id, title, post.get("score", 0), post.get("comments", 0), score, label, post.get("timestamp"))
+            save_post(
+                post_id,
+                title,
+                post.get("score", 0),
+                post.get("comments", 0),
+                score,
+                label,
+                post.get("timestamp"),
+            )
 
             minute = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M")
             minute_bucket[minute] = minute_bucket.get(minute, 0) + 1
@@ -243,9 +293,7 @@ def main():
                 current_min = all_minutes[-1]
                 previous_min = all_minutes[-2]
                 compute_drift(
-                    minute_titles[current_min],
-                    minute_titles[previous_min],
-                    title
+                    minute_titles[current_min], minute_titles[previous_min], title
                 )
 
             print(f"  [{label.upper()}] {title[:55]} (score: {score:.2f})")
@@ -257,7 +305,9 @@ def main():
 
         except Exception as e:
             dead_letter(msg.value(), f"processing error: {e}")
-            consumer.commit(msg)  # don't get stuck retrying a permanently broken message
+            consumer.commit(
+                msg
+            )  # don't get stuck retrying a permanently broken message
             continue
 
 

@@ -15,16 +15,83 @@ FRESHNESS_LIVE_MINUTES = 3
 FRESHNESS_IDLE_MINUTES = 15
 
 STOPWORDS = {
-    "the", "a", "an", "and", "or", "but", "in", "on", "at", "to", "for",
-    "of", "with", "is", "are", "was", "be", "it", "this", "that", "by",
-    "from", "as", "not", "how", "why", "what", "i", "you", "we", "they",
-    "he", "she", "my", "your", "its", "has", "have", "had", "do", "does",
-    "did", "will", "would", "could", "should", "about", "after", "new",
-    "use", "using", "than", "then", "into", "over", "can", "vs", "via",
-    "up", "out", "if", "when", "where", "who", "which", "all", "one",
-    "get", "make", "made", "just", "now", "still", "also", "off", "part",
+    "the",
+    "a",
+    "an",
+    "and",
+    "or",
+    "but",
+    "in",
+    "on",
+    "at",
+    "to",
+    "for",
+    "of",
+    "with",
+    "is",
+    "are",
+    "was",
+    "be",
+    "it",
+    "this",
+    "that",
+    "by",
+    "from",
+    "as",
+    "not",
+    "how",
+    "why",
+    "what",
+    "i",
+    "you",
+    "we",
+    "they",
+    "he",
+    "she",
+    "my",
+    "your",
+    "its",
+    "has",
+    "have",
+    "had",
+    "do",
+    "does",
+    "did",
+    "will",
+    "would",
+    "could",
+    "should",
+    "about",
+    "after",
+    "new",
+    "use",
+    "using",
+    "than",
+    "then",
+    "into",
+    "over",
+    "can",
+    "vs",
+    "via",
+    "up",
+    "out",
+    "if",
+    "when",
+    "where",
+    "who",
+    "which",
+    "all",
+    "one",
+    "get",
+    "make",
+    "made",
+    "just",
+    "now",
+    "still",
+    "also",
+    "off",
+    "part",
 }
-
 
 
 @dataclass
@@ -84,12 +151,15 @@ def momentum_pct(volume_df: pd.DataFrame, window: int = 5) -> float | None:
     if volume_df is None or len(volume_df) < window + 1:
         return None
     recent = volume_df.iloc[-1]["post_count"]
-    baseline = volume_df.iloc[-(window + 1):-1]["post_count"].mean()
+    baseline = volume_df.iloc[-(window + 1) : -1]["post_count"].mean()
     if baseline == 0:
         return None
     return round((recent - baseline) / baseline * 100, 1)
 
-def zscore_anomalies(volume_df: pd.DataFrame, threshold: float = ZSCORE_ANOMALY_THRESHOLD) -> pd.DataFrame:
+
+def zscore_anomalies(
+    volume_df: pd.DataFrame, threshold: float = ZSCORE_ANOMALY_THRESHOLD
+) -> pd.DataFrame:
     """
     Independent statistical anomaly overlay (separate from the
     processor's simple 3x-rolling-average rule): flags buckets whose
@@ -157,13 +227,16 @@ def rolling_sentiment(posts_df: pd.DataFrame, window: int = 8) -> pd.DataFrame:
     return df[["timestamp_dt", "sentiment", "rolling", "title"]]
 
 
-def top_terms(titles: pd.Series, top_n: int = 12, min_len: int = 3) -> list[tuple[str, int]]:
+def top_terms(
+    titles: pd.Series, top_n: int = 12, min_len: int = 3
+) -> list[tuple[str, int]]:
     counter: Counter = Counter()
     for title in titles.dropna():
         for word in re.findall(rf"\b[a-zA-Z]{{{min_len},}}\b", str(title).lower()):
             if word not in STOPWORDS:
                 counter[word] += 1
     return counter.most_common(top_n)
+
 
 def top_engaging_posts(posts_df: pd.DataFrame, n: int = 8) -> pd.DataFrame:
     if posts_df is None or posts_df.empty:
@@ -181,8 +254,8 @@ def average_engagement(posts_df: pd.DataFrame) -> float:
 
 @dataclass
 class PipelineStatus:
-    state: str          # "LIVE" | "IDLE" | "OFFLINE" | "NO DATA"
-    color_key: str       # maps to config.COLORS
+    state: str  # "LIVE" | "IDLE" | "OFFLINE" | "NO DATA"
+    color_key: str  # maps to config.COLORS
     minutes_since_last: float | None
     last_timestamp: str | None
 
@@ -212,7 +285,17 @@ def hourly_activity(posts_df: pd.DataFrame) -> pd.DataFrame:
         return pd.DataFrame()
     df["hour"] = df["timestamp_dt"].dt.hour
     df["weekday"] = df["timestamp_dt"].dt.day_name()
-    pivot = df.pivot_table(index="weekday", columns="hour", values="id", aggfunc="count", fill_value=0)
-    order = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+    pivot = df.pivot_table(
+        index="weekday", columns="hour", values="id", aggfunc="count", fill_value=0
+    )
+    order = [
+        "Monday",
+        "Tuesday",
+        "Wednesday",
+        "Thursday",
+        "Friday",
+        "Saturday",
+        "Sunday",
+    ]
     pivot = pivot.reindex([d for d in order if d in pivot.index])
     return pivot

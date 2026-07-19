@@ -62,6 +62,7 @@ signal.signal(signal.SIGTERM, _shutdown_handler)
 # Stats gathering — pulls the same signals a human would look at
 # --------------------------------------------------------------------------
 
+
 def _read_csv_safe(path: str) -> pd.DataFrame:
     if not os.path.exists(path):
         return pd.DataFrame()
@@ -92,12 +93,18 @@ def gather_stats() -> dict:
 
     if not posts.empty:
         posts["score"] = pd.to_numeric(posts.get("score"), errors="coerce").fillna(0)
-        posts["comments"] = pd.to_numeric(posts.get("comments"), errors="coerce").fillna(0)
+        posts["comments"] = pd.to_numeric(
+            posts.get("comments"), errors="coerce"
+        ).fillna(0)
         total = len(posts)
         if "sentiment_label" in posts.columns and total:
             counts = posts["sentiment_label"].value_counts()
-            stats["sentiment_positive_pct"] = round(counts.get("positive", 0) / total * 100, 1)
-            stats["sentiment_negative_pct"] = round(counts.get("negative", 0) / total * 100, 1)
+            stats["sentiment_positive_pct"] = round(
+                counts.get("positive", 0) / total * 100, 1
+            )
+            stats["sentiment_negative_pct"] = round(
+                counts.get("negative", 0) / total * 100, 1
+            )
         posts["engagement"] = posts["score"] + posts["comments"] * 2
         top = posts.sort_values("engagement", ascending=False).head(5)
         stats["top_posts"] = [
@@ -116,7 +123,9 @@ def gather_stats() -> dict:
         }
 
     if not correlation.empty and "correlation" in correlation.columns:
-        stats["latest_correlation"] = round(float(correlation["correlation"].iloc[-1]), 3)
+        stats["latest_correlation"] = round(
+            float(correlation["correlation"].iloc[-1]), 3
+        )
 
     if not drift.empty and "drift_score" in drift.columns:
         idx = drift["drift_score"].idxmax()
@@ -133,11 +142,15 @@ def gather_stats() -> dict:
 # Narrative generation — LLM primary, rule-based fallback
 # --------------------------------------------------------------------------
 
+
 def build_prompt(stats: dict) -> str:
-    top_titles = "\n".join(
-        f"- \"{p['title']}\" ({p['score']} pts, {p['comments']} comments)"
-        for p in stats["top_posts"]
-    ) or "- (no posts tracked yet)"
+    top_titles = (
+        "\n".join(
+            f"- \"{p['title']}\" ({p['score']} pts, {p['comments']} comments)"
+            for p in stats["top_posts"]
+        )
+        or "- (no posts tracked yet)"
+    )
 
     anomaly_line = "None currently active."
     if stats["recent_anomaly"]:
@@ -197,7 +210,9 @@ def generate_llm_digest(stats: dict) -> str | None:
                 messages=[{"role": "user", "content": prompt}],
             )
             text = "".join(
-                block.text for block in response.content if getattr(block, "type", None) == "text"
+                block.text
+                for block in response.content
+                if getattr(block, "type", None) == "text"
             ).strip()
             return text or None
         except anthropic.AuthenticationError as exc:
@@ -223,8 +238,14 @@ def generate_fallback_digest(stats: dict) -> str:
     if stats["total_posts"] == 0:
         return "Waiting for data — no posts tracked yet. Start the producer and processor to begin monitoring."
 
-    mood = "leaning positive" if stats["sentiment_positive_pct"] > stats["sentiment_negative_pct"] else (
-        "leaning negative" if stats["sentiment_negative_pct"] > stats["sentiment_positive_pct"] else "mixed"
+    mood = (
+        "leaning positive"
+        if stats["sentiment_positive_pct"] > stats["sentiment_negative_pct"]
+        else (
+            "leaning negative"
+            if stats["sentiment_negative_pct"] > stats["sentiment_positive_pct"]
+            else "mixed"
+        )
     )
     parts = [
         f"Tracking {stats['total_posts']} posts at {stats['velocity']} posts/min, sentiment {mood} "
@@ -232,14 +253,18 @@ def generate_fallback_digest(stats: dict) -> str:
     ]
     if stats["top_posts"]:
         top = stats["top_posts"][0]
-        parts.append(f"Top story right now: \"{top['title']}\" ({top['score']} pts, {top['comments']} comments).")
+        parts.append(
+            f"Top story right now: \"{top['title']}\" ({top['score']} pts, {top['comments']} comments)."
+        )
     if stats["recent_anomaly"]:
         parts.append(
             f"Volume anomaly active: {stats['recent_anomaly']['post_count']:.0f} vs "
             f"rolling average {stats['recent_anomaly']['rolling_avg']:.1f}."
         )
     if stats["top_drift"] and stats["top_drift"]["score"] >= 0.3:
-        parts.append(f"Possible topic shift detected (drift score {stats['top_drift']['score']:.2f}).")
+        parts.append(
+            f"Possible topic shift detected (drift score {stats['top_drift']['score']:.2f})."
+        )
     return " ".join(parts)
 
 
@@ -255,6 +280,7 @@ def generate_digest(stats: dict) -> tuple[str, str]:
 # CSV output
 # --------------------------------------------------------------------------
 
+
 def write_digest(digest_text: str, mode: str, posts_analyzed: int) -> None:
     file_exists = os.path.exists(DIGEST_CSV)
     with open(DIGEST_CSV, "a", newline="", encoding="utf-8") as f:
@@ -268,6 +294,7 @@ def write_digest(digest_text: str, mode: str, posts_analyzed: int) -> None:
 # Main loop
 # --------------------------------------------------------------------------
 
+
 def run_once() -> None:
     stats = gather_stats()
     digest_text, mode = generate_digest(stats)
@@ -276,8 +303,10 @@ def run_once() -> None:
 
 
 def main() -> None:
-    print(f"🧠 Pulse Digest generator started — refreshing every {DIGEST_INTERVAL_SECONDS}s "
-          f"({'LLM mode' if os.environ.get('ANTHROPIC_API_KEY') else 'fallback mode, no ANTHROPIC_API_KEY set'})")
+    print(
+        f"🧠 Pulse Digest generator started — refreshing every {DIGEST_INTERVAL_SECONDS}s "
+        f"({'LLM mode' if os.environ.get('ANTHROPIC_API_KEY') else 'fallback mode, no ANTHROPIC_API_KEY set'})"
+    )
     while not _shutdown_requested:
         try:
             run_once()

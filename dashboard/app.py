@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import os
 import re
-import time
 from collections import Counter
 from dataclasses import dataclass
 from datetime import datetime
@@ -39,7 +38,9 @@ def _raw(html: str) -> str:
 # --------------------------------------------------------------------------
 
 DEMO_MODE = os.environ.get("DEMO_MODE", "false").lower() == "true"
-DEMO_DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "demo_data")
+DEMO_DATA_DIR = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "demo_data"
+)
 
 # --------------------------------------------------------------------------
 # App metadata
@@ -83,17 +84,14 @@ COLORS = {
     "surface_alt": "#171f34",
     "border": "rgba(148, 163, 184, 0.12)",
     "border_strong": "rgba(148, 163, 184, 0.22)",
-
     # Text
     "text_primary": "#f1f5f9",
     "text_secondary": "#94a3b8",
     "text_muted": "#5b6a85",
-
     # Brand gradient
-    "brand_start": "#6366f1",   # indigo
-    "brand_mid": "#8b5cf6",     # violet
-    "brand_end": "#22d3ee",     # cyan
-
+    "brand_start": "#6366f1",  # indigo
+    "brand_mid": "#8b5cf6",  # violet
+    "brand_end": "#22d3ee",  # cyan
     # Semantic
     "positive": "#22c55e",
     "positive_soft": "rgba(34, 197, 94, 0.14)",
@@ -103,7 +101,6 @@ COLORS = {
     "neutral_soft": "rgba(96, 165, 250, 0.14)",
     "warning": "#f59e0b",
     "warning_soft": "rgba(245, 158, 11, 0.14)",
-
     # Status
     "live": "#22c55e",
     "idle": "#f59e0b",
@@ -133,7 +130,7 @@ MONO_FONT = "'JetBrains Mono', 'Fira Code', monospace"
 # It blends three signals with the following weights:
 
 PULSE_WEIGHTS = {
-    "velocity": 0.40,   # how much discussion volume is happening
+    "velocity": 0.40,  # how much discussion volume is happening
     "sentiment": 0.35,  # how positive/negative the mood is
     "stability": 0.25,  # penalized by recent anomalies/volatility
 }
@@ -152,7 +149,9 @@ def db_exists() -> bool:
     return os.path.exists(demo_path) if DEMO_MODE else os.path.exists(CSV_POSTS)
 
 
-def _shift_demo_time(df: pd.DataFrame, dt_col: str, str_col: str, str_fmt: str) -> pd.DataFrame:
+def _shift_demo_time(
+    df: pd.DataFrame, dt_col: str, str_col: str, str_fmt: str
+) -> pd.DataFrame:
     """
     Demo Mode replays a static, pre-recorded snapshot. Without this, the
     snapshot's timestamps stay fixed at whenever it was generated, so the
@@ -227,7 +226,9 @@ def load_alerts(limit: int = 25) -> pd.DataFrame:
             return df
         df["timestamp_dt"] = pd.to_datetime(df["timestamp"], errors="coerce")
         df["post_count"] = pd.to_numeric(df["post_count"], errors="coerce").fillna(0)
-        df["rolling_avg"] = pd.to_numeric(df["rolling_avg"], errors="coerce").fillna(0.0)
+        df["rolling_avg"] = pd.to_numeric(df["rolling_avg"], errors="coerce").fillna(
+            0.0
+        )
         df = _shift_demo_time(df, "timestamp_dt", "timestamp", "%Y-%m-%dT%H:%M:%S.%f")
         return df.tail(limit)
     except Exception:
@@ -250,7 +251,7 @@ def load_table_counts() -> dict:
     return {
         "posts": len(posts),
         "volume_per_minute": len(volume),
-        "anomaly_alerts": len(alerts)
+        "anomaly_alerts": len(alerts),
     }
 
 
@@ -258,12 +259,17 @@ def load_table_counts() -> dict:
 def load_null_quality() -> dict:
     df = load_posts()
     if df.empty:
-        return {"total": 0, "missing_title": 0, "missing_sentiment": 0, "missing_score": 0}
+        return {
+            "total": 0,
+            "missing_title": 0,
+            "missing_sentiment": 0,
+            "missing_score": 0,
+        }
     return {
         "total": len(df),
         "missing_title": int(df["title"].isna().sum()),
         "missing_sentiment": int(df["sentiment_label"].isna().sum()),
-        "missing_score": int(df["score"].isna().sum())
+        "missing_score": int(df["score"].isna().sum()),
     }
 
 
@@ -274,7 +280,11 @@ def load_digest() -> dict | None:
     a short LLM-generated (or rule-based fallback) narrative summary of
     what's currently happening in the pipeline.
     """
-    path = os.path.join(DEMO_DATA_DIR, "data_digest.csv") if DEMO_MODE else "data_digest.csv"
+    path = (
+        os.path.join(DEMO_DATA_DIR, "data_digest.csv")
+        if DEMO_MODE
+        else "data_digest.csv"
+    )
     if not os.path.exists(path):
         return None
     try:
@@ -282,7 +292,9 @@ def load_digest() -> dict | None:
         if df.empty:
             return None
         df["generated_dt"] = pd.to_datetime(df["generated_at"], errors="coerce")
-        df = _shift_demo_time(df, "generated_dt", "generated_at", "%Y-%m-%dT%H:%M:%S.%f")
+        df = _shift_demo_time(
+            df, "generated_dt", "generated_at", "%Y-%m-%dT%H:%M:%S.%f"
+        )
         last = df.iloc[-1]
         return {
             "text": str(last["digest_text"]),
@@ -307,20 +319,89 @@ def clear_all_caches() -> None:
 # ANALYTICS MODULE (merged)
 # ============================================================================
 STOPWORDS = {
-    "the", "a", "an", "and", "or", "but", "in", "on", "at", "to", "for",
-    "of", "with", "is", "are", "was", "be", "it", "this", "that", "by",
-    "from", "as", "not", "how", "why", "what", "i", "you", "we", "they",
-    "he", "she", "my", "your", "its", "has", "have", "had", "do", "does",
-    "did", "will", "would", "could", "should", "about", "after", "new",
-    "use", "using", "than", "then", "into", "over", "can", "vs", "via",
-    "up", "out", "if", "when", "where", "who", "which", "all", "one",
-    "get", "make", "made", "just", "now", "still", "also", "off", "part",
+    "the",
+    "a",
+    "an",
+    "and",
+    "or",
+    "but",
+    "in",
+    "on",
+    "at",
+    "to",
+    "for",
+    "of",
+    "with",
+    "is",
+    "are",
+    "was",
+    "be",
+    "it",
+    "this",
+    "that",
+    "by",
+    "from",
+    "as",
+    "not",
+    "how",
+    "why",
+    "what",
+    "i",
+    "you",
+    "we",
+    "they",
+    "he",
+    "she",
+    "my",
+    "your",
+    "its",
+    "has",
+    "have",
+    "had",
+    "do",
+    "does",
+    "did",
+    "will",
+    "would",
+    "could",
+    "should",
+    "about",
+    "after",
+    "new",
+    "use",
+    "using",
+    "than",
+    "then",
+    "into",
+    "over",
+    "can",
+    "vs",
+    "via",
+    "up",
+    "out",
+    "if",
+    "when",
+    "where",
+    "who",
+    "which",
+    "all",
+    "one",
+    "get",
+    "make",
+    "made",
+    "just",
+    "now",
+    "still",
+    "also",
+    "off",
+    "part",
 }
 
 
 # --------------------------------------------------------------------------
 # Sentiment summary helpers
 # --------------------------------------------------------------------------
+
 
 @dataclass
 class SentimentBreakdown:
@@ -367,6 +448,7 @@ def sentiment_breakdown(sentiment_df: pd.DataFrame) -> SentimentBreakdown:
 # Volume / velocity / momentum
 # --------------------------------------------------------------------------
 
+
 def current_velocity(volume_df: pd.DataFrame, window: int = 5) -> float:
     """Average posts/minute over the most recent `window` buckets."""
     if volume_df is None or volume_df.empty:
@@ -383,13 +465,15 @@ def momentum_pct(volume_df: pd.DataFrame, window: int = 5) -> float | None:
     if volume_df is None or len(volume_df) < window + 1:
         return None
     recent = volume_df.iloc[-1]["post_count"]
-    baseline = volume_df.iloc[-(window + 1):-1]["post_count"].mean()
+    baseline = volume_df.iloc[-(window + 1) : -1]["post_count"].mean()
     if baseline == 0:
         return None
     return round((recent - baseline) / baseline * 100, 1)
 
 
-def zscore_anomalies(volume_df: pd.DataFrame, threshold: float = ZSCORE_ANOMALY_THRESHOLD) -> pd.DataFrame:
+def zscore_anomalies(
+    volume_df: pd.DataFrame, threshold: float = ZSCORE_ANOMALY_THRESHOLD
+) -> pd.DataFrame:
     """
     Independent statistical anomaly overlay (separate from the
     processor's simple 3x-rolling-average rule): flags buckets whose
@@ -411,6 +495,7 @@ def zscore_anomalies(volume_df: pd.DataFrame, threshold: float = ZSCORE_ANOMALY_
 # --------------------------------------------------------------------------
 # Composite Pulse Score
 # --------------------------------------------------------------------------
+
 
 def pulse_score(
     velocity: float,
@@ -455,6 +540,7 @@ def pulse_label(score: int) -> tuple[str, str]:
 # Rolling sentiment over time
 # --------------------------------------------------------------------------
 
+
 def rolling_sentiment(posts_df: pd.DataFrame, window: int = 8) -> pd.DataFrame:
     if posts_df is None or posts_df.empty or "timestamp_dt" not in posts_df:
         return pd.DataFrame(columns=["timestamp_dt", "sentiment", "rolling"])
@@ -469,7 +555,10 @@ def rolling_sentiment(posts_df: pd.DataFrame, window: int = 8) -> pd.DataFrame:
 # Trending terms
 # --------------------------------------------------------------------------
 
-def top_terms(titles: pd.Series, top_n: int = 12, min_len: int = 3) -> list[tuple[str, int]]:
+
+def top_terms(
+    titles: pd.Series, top_n: int = 12, min_len: int = 3
+) -> list[tuple[str, int]]:
     counter: Counter = Counter()
     for title in titles.dropna():
         for word in re.findall(rf"\b[a-zA-Z]{{{min_len},}}\b", str(title).lower()):
@@ -481,6 +570,7 @@ def top_terms(titles: pd.Series, top_n: int = 12, min_len: int = 3) -> list[tupl
 # --------------------------------------------------------------------------
 # Engagement
 # --------------------------------------------------------------------------
+
 
 def top_engaging_posts(posts_df: pd.DataFrame, n: int = 8) -> pd.DataFrame:
     if posts_df is None or posts_df.empty:
@@ -498,10 +588,11 @@ def average_engagement(posts_df: pd.DataFrame) -> float:
 # Pipeline freshness / health
 # --------------------------------------------------------------------------
 
+
 @dataclass
 class PipelineStatus:
-    state: str          # "LIVE" | "IDLE" | "OFFLINE" | "NO DATA"
-    color_key: str       # maps to config.COLORS
+    state: str  # "LIVE" | "IDLE" | "OFFLINE" | "NO DATA"
+    color_key: str  # maps to config.COLORS
     minutes_since_last: float | None
     last_timestamp: str | None
 
@@ -510,15 +601,26 @@ def compute_throughput(posts_df: pd.DataFrame, window_seconds: int = 60) -> floa
     """Messages processed per second, based on timestamps in the last window."""
     if posts_df is None or posts_df.empty or "timestamp_dt" not in posts_df:
         return 0.0
-    now = pd.Timestamp.now(tz=posts_df["timestamp_dt"].dt.tz) if posts_df["timestamp_dt"].dt.tz else pd.Timestamp.now()
+    now = (
+        pd.Timestamp.now(tz=posts_df["timestamp_dt"].dt.tz)
+        if posts_df["timestamp_dt"].dt.tz
+        else pd.Timestamp.now()
+    )
     recent = posts_df.dropna(subset=["timestamp_dt"])
-    recent = recent[recent["timestamp_dt"] >= now - pd.Timedelta(seconds=window_seconds)]
+    recent = recent[
+        recent["timestamp_dt"] >= now - pd.Timedelta(seconds=window_seconds)
+    ]
     return round(len(recent) / window_seconds, 3)
 
 
 def compute_latency(posts_df: pd.DataFrame) -> float | None:
     """Average end-to-end latency (seconds) between a post being fetched and fully processed."""
-    if posts_df is None or posts_df.empty or "processed_at_dt" not in posts_df or "timestamp_dt" not in posts_df:
+    if (
+        posts_df is None
+        or posts_df.empty
+        or "processed_at_dt" not in posts_df
+        or "timestamp_dt" not in posts_df
+    ):
         return None
     valid = posts_df.dropna(subset=["processed_at_dt", "timestamp_dt"]).tail(50)
     if valid.empty:
@@ -527,8 +629,11 @@ def compute_latency(posts_df: pd.DataFrame) -> float | None:
     return round(latency.mean(), 2)
 
 
-def get_kafka_lag(topic: str = "hn-posts", group_id: str = "pulselite-processor",
-                   bootstrap: str = "localhost:9092") -> int | None:
+def get_kafka_lag(
+    topic: str = "hn-posts",
+    group_id: str = "pulselite-processor",
+    bootstrap: str = "localhost:9092",
+) -> int | None:
     """Real Kafka consumer lag: how many unprocessed messages sit behind the processor."""
     if DEMO_MODE:
         return None
@@ -542,11 +647,13 @@ def get_kafka_lag(topic: str = "hn-posts", group_id: str = "pulselite-processor"
             return None
         partitions = list(cluster_md.topics[topic].partitions.keys())
 
-        consumer = Consumer({
-            "bootstrap.servers": bootstrap,
-            "group.id": group_id,
-            "enable.auto.commit": False,
-        })
+        consumer = Consumer(
+            {
+                "bootstrap.servers": bootstrap,
+                "group.id": group_id,
+                "enable.auto.commit": False,
+            }
+        )
 
         tps = [TopicPartition(topic, p) for p in partitions]
         committed = consumer.committed(tps, timeout=5)
@@ -560,7 +667,7 @@ def get_kafka_lag(topic: str = "hn-posts", group_id: str = "pulselite-processor"
         consumer.close()
         return total_lag
     except Exception:
-        return None    
+        return None
 
 
 def pipeline_status(posts_df: pd.DataFrame) -> PipelineStatus:
@@ -570,7 +677,11 @@ def pipeline_status(posts_df: pd.DataFrame) -> PipelineStatus:
     if valid.empty:
         return PipelineStatus("NO DATA", "offline", None, None)
     latest = valid["timestamp_dt"].max()
-    now = datetime.now(latest.to_pydatetime().tzinfo) if latest.to_pydatetime().tzinfo else datetime.now()
+    now = (
+        datetime.now(latest.to_pydatetime().tzinfo)
+        if latest.to_pydatetime().tzinfo
+        else datetime.now()
+    )
     delta_minutes = (now - latest.to_pydatetime()).total_seconds() / 60
     if delta_minutes <= FRESHNESS_LIVE_MINUTES:
         return PipelineStatus("LIVE", "live", round(delta_minutes, 1), str(latest))
@@ -589,8 +700,18 @@ def hourly_activity(posts_df: pd.DataFrame) -> pd.DataFrame:
         return pd.DataFrame()
     df["hour"] = df["timestamp_dt"].dt.hour
     df["weekday"] = df["timestamp_dt"].dt.day_name()
-    pivot = df.pivot_table(index="weekday", columns="hour", values="id", aggfunc="count", fill_value=0)
-    order = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+    pivot = df.pivot_table(
+        index="weekday", columns="hour", values="id", aggfunc="count", fill_value=0
+    )
+    order = [
+        "Monday",
+        "Tuesday",
+        "Wednesday",
+        "Thursday",
+        "Friday",
+        "Saturday",
+        "Sunday",
+    ]
     pivot = pivot.reindex([d for d in order if d in pivot.index])
     return pivot
 
@@ -1060,26 +1181,32 @@ def inject_css(st_module) -> None:
 # COMPONENTS MODULE (merged)
 # ============================================================================
 def status_badge(state: str, color_key: str) -> str:
-    return _raw(f"""
+    return _raw(
+        f"""
     <div class="pl-status-badge {color_key}">
         <span class="pl-dot {color_key}"></span>{state}
     </div>
-    """)
+    """
+    )
 
 
-def kpi_card(icon: str, label: str, value: str, delta: str | None = None, direction: str = "flat") -> str:
+def kpi_card(
+    icon: str, label: str, value: str, delta: str | None = None, direction: str = "flat"
+) -> str:
     delta_html = ""
     if delta:
         arrow = {"up": "▲", "down": "▼", "flat": "•"}.get(direction, "•")
         delta_html = f'<div class="pl-kpi-delta {direction}">{arrow} {delta}</div>'
-    return _raw(f"""
+    return _raw(
+        f"""
     <div class="pl-kpi-card">
         <div class="pl-kpi-icon">{icon}</div>
         <div class="pl-kpi-label">{label}</div>
         <div class="pl-kpi-value">{value}</div>
         {delta_html}
     </div>
-    """)
+    """
+    )
 
 
 def section_title(icon: str, title: str, subtitle: str | None = None) -> str:
@@ -1087,12 +1214,21 @@ def section_title(icon: str, title: str, subtitle: str | None = None) -> str:
     return f'<div class="pl-section-title">{icon} {title}</div>{sub}'
 
 
-def post_card(title: str, score: int, comments: int, sentiment: float, label: str, timestamp: str, post_id: int = None) -> str:
+def post_card(
+    title: str,
+    score: int,
+    comments: int,
+    sentiment: float,
+    label: str,
+    timestamp: str,
+    post_id: int = None,
+) -> str:
     emoji = SENTIMENT_EMOJI.get(label, "🔵")
     short_title = title if len(title) <= 100 else title[:97] + "…"
     ts_display = timestamp[:16].replace("T", " ") if timestamp else "—"
     hn_url = f"https://news.ycombinator.com/item?id={post_id}" if post_id else "#"
-    return _raw(f"""
+    return _raw(
+        f"""
     <div class="pl-post-card {label}">
         <div class="pl-post-title">{emoji} <a href="{hn_url}" target="_blank" style="color:inherit;text-decoration:none;">{short_title}</a></div>
         <div class="pl-post-meta">
@@ -1103,13 +1239,17 @@ def post_card(title: str, score: int, comments: int, sentiment: float, label: st
             <span>score {sentiment:+.2f}</span>
         </div>
     </div>
-    """)
+    """
+    )
 
 
-def leaderboard_row(rank: int, title: str, score: int, comments: int, label: str) -> str:
+def leaderboard_row(
+    rank: int, title: str, score: int, comments: int, label: str
+) -> str:
     emoji = SENTIMENT_EMOJI.get(label, "🔵")
     short_title = title if len(title) <= 78 else title[:75] + "…"
-    return _raw(f"""
+    return _raw(
+        f"""
     <div class="pl-post-card {label}">
         <span class="pl-rank-badge">{rank}</span>
         <span class="pl-post-title">{emoji} {short_title}</span>
@@ -1118,51 +1258,62 @@ def leaderboard_row(rank: int, title: str, score: int, comments: int, label: str
             <span>💬 {int(comments)}</span>
         </div>
     </div>
-    """)
+    """
+    )
 
 
 def alert_card(timestamp: str, post_count: int, rolling_avg: float) -> str:
     ts_display = str(timestamp)[:19].replace("T", " ")
     ratio = round(post_count / rolling_avg, 1) if rolling_avg else 0
-    return _raw(f"""
+    return _raw(
+        f"""
     <div class="pl-alert-card">
         🚨 <b>Volume spike detected</b> at <code>{ts_display}</code><br>
         Observed <b>{int(post_count)}</b> posts vs a rolling average of <b>{rolling_avg:.1f}</b>
         &nbsp;(<b>{ratio}×</b> normal)
     </div>
-    """)
+    """
+    )
 
 
 def pipeline_card(icon: str, name: str, status: str) -> str:
-    return _raw(f"""
+    return _raw(
+        f"""
     <div class="pl-pipe-card">
         <div class="pl-pipe-icon">{icon}</div>
         <div class="pl-pipe-name">{name}</div>
         <div class="pl-pipe-status">{status}</div>
     </div>
-    """)
+    """
+    )
 
 
 def empty_state(emoji: str, title: str, body_html: str) -> str:
-    return _raw(f"""
+    return _raw(
+        f"""
     <div class="pl-empty-state">
         <div class="pl-empty-emoji">{emoji}</div>
         <h3>{title}</h3>
         <p>{body_html}</p>
     </div>
-    """)
+    """
+    )
 
 
 def digest_card(text: str, mode: str, generated_at: str) -> str:
     mode_label = "AI-generated" if mode == "llm" else "auto-generated (rule-based)"
     ts_display = str(generated_at)[:19].replace("T", " ")
-    return _raw(f"""
+    return _raw(
+        f"""
     <div class="pl-digest-card">
         <div class="pl-digest-label">🧠 Pulse Digest</div>
         <div class="pl-digest-text">{text}</div>
         <div class="pl-digest-meta">{mode_label} · updated {ts_display}</div>
     </div>
-    """)
+    """
+    )
+
+
 # ==========================================================================
 # Page setup
 # ==========================================================================
@@ -1196,7 +1347,10 @@ for key, val in defaults.items():
 # Plotly base layout helper — keeps every chart visually consistent
 # ==========================================================================
 
-def apply_chart_theme(fig: go.Figure, height: int = 320, showlegend: bool = False) -> go.Figure:
+
+def apply_chart_theme(
+    fig: go.Figure, height: int = 320, showlegend: bool = False
+) -> go.Figure:
     fig.update_layout(
         plot_bgcolor="rgba(0,0,0,0)",
         paper_bgcolor="rgba(0,0,0,0)",
@@ -1204,11 +1358,22 @@ def apply_chart_theme(fig: go.Figure, height: int = 320, showlegend: bool = Fals
         margin=dict(l=6, r=6, t=28, b=6),
         height=height,
         showlegend=showlegend,
-        legend=dict(font=dict(color=COLORS["text_secondary"]), orientation="h", y=-0.18),
-        hoverlabel=dict(bgcolor=COLORS["surface"], font_color=COLORS["text_primary"], bordercolor=COLORS["border"]),
+        legend=dict(
+            font=dict(color=COLORS["text_secondary"]), orientation="h", y=-0.18
+        ),
+        hoverlabel=dict(
+            bgcolor=COLORS["surface"],
+            font_color=COLORS["text_primary"],
+            bordercolor=COLORS["border"],
+        ),
     )
     fig.update_xaxes(showgrid=False, color=COLORS["text_secondary"], zeroline=False)
-    fig.update_yaxes(showgrid=True, gridcolor=COLORS["border"], color=COLORS["text_secondary"], zeroline=False)
+    fig.update_yaxes(
+        showgrid=True,
+        gridcolor=COLORS["border"],
+        color=COLORS["text_secondary"],
+        zeroline=False,
+    )
     return fig
 
 
@@ -1218,7 +1383,8 @@ def apply_chart_theme(fig: go.Figure, height: int = 320, showlegend: bool = Fals
 
 with st.sidebar:
     st.markdown(
-        _raw(f"""
+        _raw(
+            f"""
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:2px;">
             <div class="pl-logo-mark">{APP_ICON}</div>
             <div>
@@ -1226,13 +1392,16 @@ with st.sidebar:
                 <div style="font-size:0.72rem;color:{COLORS['text_muted']};">Control Center</div>
             </div>
         </div>
-        """),
+        """
+        ),
         unsafe_allow_html=True,
     )
     st.divider()
 
     st.markdown("**⏱ Refresh**")
-    st.session_state.auto_refresh = st.toggle("Auto-refresh", value=st.session_state.auto_refresh)
+    st.session_state.auto_refresh = st.toggle(
+        "Auto-refresh", value=st.session_state.auto_refresh
+    )
     st.session_state.refresh_seconds = st.slider(
         "Interval (seconds)",
         min_value=MIN_REFRESH_SECONDS,
@@ -1255,19 +1424,35 @@ with st.sidebar:
         default=st.session_state.sentiment_filter,
         format_func=lambda x: x.capitalize(),
     )
-    st.session_state.search_query = st.text_input("Search titles", value=st.session_state.search_query, placeholder="e.g. rust, llm, security…")
-    st.session_state.min_score = st.slider("Minimum HN score", 0, 500, st.session_state.min_score, step=10)
+    st.session_state.search_query = st.text_input(
+        "Search titles",
+        value=st.session_state.search_query,
+        placeholder="e.g. rust, llm, security…",
+    )
+    st.session_state.min_score = st.slider(
+        "Minimum HN score", 0, 500, st.session_state.min_score, step=10
+    )
     st.session_state.sort_mode = st.selectbox(
         "Sort live feed by",
         ["Newest", "Highest score", "Most comments", "Most positive", "Most negative"],
-        index=["Newest", "Highest score", "Most comments", "Most positive", "Most negative"].index(st.session_state.sort_mode),
+        index=[
+            "Newest",
+            "Highest score",
+            "Most comments",
+            "Most positive",
+            "Most negative",
+        ].index(st.session_state.sort_mode),
     )
-    st.session_state.post_limit = st.slider("Rows to analyze", 100, 1000, st.session_state.post_limit, step=100)
+    st.session_state.post_limit = st.slider(
+        "Rows to analyze", 100, 1000, st.session_state.post_limit, step=100
+    )
 
     st.divider()
     with st.expander("🏗️ Architecture", expanded=False):
         st.markdown(" → ".join(PIPELINE))
-        st.caption(f"Source: {SOURCE_LABEL}  ·  Storage: CSV (`{CSV_POSTS}`, `{CSV_VOLUME}`, `{CSV_ALERTS}`)")
+        st.caption(
+            f"Source: {SOURCE_LABEL}  ·  Storage: CSV (`{CSV_POSTS}`, `{CSV_VOLUME}`, `{CSV_ALERTS}`)"
+        )
 
     with st.expander("ℹ️ About PulseLite", expanded=False):
         st.markdown(
@@ -1284,11 +1469,11 @@ with st.sidebar:
         st.caption(AUTHOR)
 
 
-
 # ==========================================================================
 # Live section — driven by st_autorefresh below; re-renders on every tick
 # so KPI numbers, charts, and the clock genuinely update in place.
 # ==========================================================================
+
 
 def _render_live_dashboard() -> None:
     # ==========================================================================
@@ -1309,12 +1494,20 @@ def _render_live_dashboard() -> None:
     filtered_posts = posts_all.copy()
     if has_data:
         if st.session_state.sentiment_filter:
-            filtered_posts = filtered_posts[filtered_posts["sentiment_label"].isin(st.session_state.sentiment_filter)]
+            filtered_posts = filtered_posts[
+                filtered_posts["sentiment_label"].isin(
+                    st.session_state.sentiment_filter
+                )
+            ]
         if st.session_state.search_query:
             q = st.session_state.search_query.lower()
-            filtered_posts = filtered_posts[filtered_posts["title"].str.lower().str.contains(q, na=False)]
+            filtered_posts = filtered_posts[
+                filtered_posts["title"].str.lower().str.contains(q, na=False)
+            ]
         if st.session_state.min_score:
-            filtered_posts = filtered_posts[filtered_posts["score"] >= st.session_state.min_score]
+            filtered_posts = filtered_posts[
+                filtered_posts["score"] >= st.session_state.min_score
+            ]
 
         sort_map = {
             "Newest": ("timestamp_dt", False),
@@ -1325,7 +1518,6 @@ def _render_live_dashboard() -> None:
         }
         sort_col, ascending = sort_map[st.session_state.sort_mode]
         filtered_posts = filtered_posts.sort_values(sort_col, ascending=ascending)
-
 
     # ==========================================================================
     # Derived analytics
@@ -1340,7 +1532,6 @@ def _render_live_dashboard() -> None:
     status = pipeline_status(posts_all)
     avg_engagement = average_engagement(posts_all)
 
-
     # ==========================================================================
     # Header
     # ==========================================================================
@@ -1348,7 +1539,8 @@ def _render_live_dashboard() -> None:
     hdr_left, hdr_right = st.columns([3, 1])
     with hdr_left:
         st.markdown(
-            _raw(f"""
+            _raw(
+                f"""
             <div class="pl-title-row">
                 <div class="pl-logo-mark">{APP_ICON}</div>
                 <div>
@@ -1356,25 +1548,29 @@ def _render_live_dashboard() -> None:
                     <p class="pl-subtitle">{APP_TAGLINE} &nbsp;·&nbsp; {SOURCE_LABEL}</p>
                 </div>
             </div>
-            """),
+            """
+            ),
             unsafe_allow_html=True,
         )
     with hdr_right:
         st.markdown(
-            _raw(f"""
+            _raw(
+                f"""
             <div class="pl-meta-panel">
                 <div style="margin-bottom:6px;">{status_badge(status.state, status.color_key)}</div>
                 <div class="pl-clock">{datetime.now().strftime('%H:%M:%S')}</div>
                 <div class="pl-clock-label">{datetime.now().strftime('%d %b %Y')}</div>
             </div>
-            """),
+            """
+            ),
             unsafe_allow_html=True,
         )
         if DEMO_MODE:
-            st.info("🎬 **Demo Mode** — Live pipeline not required. [Run locally](https://github.com/Dewesh10/pulselite) to see real data.")
+            st.info(
+                "🎬 **Demo Mode** — Live pipeline not required. [Run locally](https://github.com/Dewesh10/pulselite) to see real data."
+            )
 
     st.divider()
-
 
     # ==========================================================================
     # Empty state (fresh clone / pipeline not started)
@@ -1393,44 +1589,82 @@ def _render_live_dashboard() -> None:
         )
         st.stop()
 
-
     # ==========================================================================
     # Pulse Digest — narrative summary, shown before the raw numbers
     # ==========================================================================
 
     digest = load_digest()
     if digest:
-        st.markdown(digest_card(digest["text"], digest["mode"], digest["generated_at"]), unsafe_allow_html=True)
-
+        st.markdown(
+            digest_card(digest["text"], digest["mode"], digest["generated_at"]),
+            unsafe_allow_html=True,
+        )
 
     # ==========================================================================
     # KPI row
     # ==========================================================================
 
-    delta_dir = "up" if (momentum or 0) > 0 else ("down" if (momentum or 0) < 0 else "flat")
-    momentum_text = f"{momentum:+.1f}% vs prior window" if momentum is not None else "warming up…"
+    delta_dir = (
+        "up" if (momentum or 0) > 0 else ("down" if (momentum or 0) < 0 else "flat")
+    )
+    momentum_text = (
+        f"{momentum:+.1f}% vs prior window" if momentum is not None else "warming up…"
+    )
 
     kpi_html = "".join(
         [
             kpi_card("📊", "Total Posts Tracked", f"{table_counts.get('posts', 0):,}"),
             kpi_card("⚡", "Velocity", f"{velocity:g}/min", momentum_text, delta_dir),
-            kpi_card("💓", "Pulse Score", f"{score}/100", score_label, score_color if score_color != "warning" else "flat"),
-            kpi_card("🎭", "Sentiment Index", f"{breakdown.index:+.0f}", f"{breakdown.positive_pct}% positive", "up" if breakdown.index > 0 else "down" if breakdown.index < 0 else "flat"),
-            kpi_card("🚨", "Active Anomalies", f"{len(alerts_df)}", f"{len(zscore_flags)} statistical flags", "down" if len(alerts_df) else "flat"),
-            kpi_card("🔥", "Avg Engagement", f"{avg_engagement:g}", "score + comments", "flat"),
+            kpi_card(
+                "💓",
+                "Pulse Score",
+                f"{score}/100",
+                score_label,
+                score_color if score_color != "warning" else "flat",
+            ),
+            kpi_card(
+                "🎭",
+                "Sentiment Index",
+                f"{breakdown.index:+.0f}",
+                f"{breakdown.positive_pct}% positive",
+                (
+                    "up"
+                    if breakdown.index > 0
+                    else "down" if breakdown.index < 0 else "flat"
+                ),
+            ),
+            kpi_card(
+                "🚨",
+                "Active Anomalies",
+                f"{len(alerts_df)}",
+                f"{len(zscore_flags)} statistical flags",
+                "down" if len(alerts_df) else "flat",
+            ),
+            kpi_card(
+                "🔥",
+                "Avg Engagement",
+                f"{avg_engagement:g}",
+                "score + comments",
+                "flat",
+            ),
         ]
     )
     st.markdown(f'<div class="pl-kpi-grid">{kpi_html}</div>', unsafe_allow_html=True)
 
     st.write("")
 
-
     # ==========================================================================
     # Tabs
     # ==========================================================================
 
     tab_overview, tab_feed, tab_trends, tab_anomalies, tab_pipeline = st.tabs(
-        ["📊 Overview", "📰 Live Feed", "📈 Trends & Analytics", "🚨 Anomalies", "⚙️ Pipeline Health"]
+        [
+            "📊 Overview",
+            "📰 Live Feed",
+            "📈 Trends & Analytics",
+            "🚨 Anomalies",
+            "⚙️ Pipeline Health",
+        ]
     )
 
     # --------------------------------------------------------------------------
@@ -1440,7 +1674,14 @@ def _render_live_dashboard() -> None:
         col_vol, col_sent = st.columns([2, 1])
 
         with col_vol:
-            st.markdown(section_title("📈", "Post Volume Timeline", "Posts per minute, with anomaly markers overlaid"), unsafe_allow_html=True)
+            st.markdown(
+                section_title(
+                    "📈",
+                    "Post Volume Timeline",
+                    "Posts per minute, with anomaly markers overlaid",
+                ),
+                unsafe_allow_html=True,
+            )
             if len(volume_df) > 0:
                 fig = go.Figure()
                 fig.add_trace(
@@ -1455,18 +1696,33 @@ def _render_live_dashboard() -> None:
                     )
                 )
                 if len(volume_df) >= 3:
-                    rolling = volume_df["post_count"].rolling(window=min(5, len(volume_df)), min_periods=1).mean()
+                    rolling = (
+                        volume_df["post_count"]
+                        .rolling(window=min(5, len(volume_df)), min_periods=1)
+                        .mean()
+                    )
                     fig.add_trace(
                         go.Scatter(
-                            x=volume_df["minute_dt"], y=rolling, mode="lines", name="Rolling avg",
+                            x=volume_df["minute_dt"],
+                            y=rolling,
+                            mode="lines",
+                            name="Rolling avg",
                             line=dict(color=COLORS["brand_mid"], width=1.5, dash="dot"),
                         )
                     )
                 if len(zscore_flags) > 0:
                     fig.add_trace(
                         go.Scatter(
-                            x=zscore_flags["minute_dt"], y=zscore_flags["post_count"], mode="markers", name="Anomaly",
-                            marker=dict(size=11, color=COLORS["negative"], symbol="diamond", line=dict(width=1.5, color="white")),
+                            x=zscore_flags["minute_dt"],
+                            y=zscore_flags["post_count"],
+                            mode="markers",
+                            name="Anomaly",
+                            marker=dict(
+                                size=11,
+                                color=COLORS["negative"],
+                                symbol="diamond",
+                                line=dict(width=1.5, color="white"),
+                            ),
                         )
                     )
                 apply_chart_theme(fig, height=320, showlegend=True)
@@ -1481,12 +1737,23 @@ def _render_live_dashboard() -> None:
                     labels=["Positive", "Negative", "Neutral"],
                     values=[breakdown.positive, breakdown.negative, breakdown.neutral],
                     hole=0.62,
-                    marker=dict(colors=[COLORS["positive"], COLORS["negative"], COLORS["neutral"]], line=dict(color=COLORS["bg"], width=2)),
+                    marker=dict(
+                        colors=[
+                            COLORS["positive"],
+                            COLORS["negative"],
+                            COLORS["neutral"],
+                        ],
+                        line=dict(color=COLORS["bg"], width=2),
+                    ),
                     textinfo="percent",
                     textfont=dict(color="white", size=12),
                 )
             )
-            fig2.add_annotation(text=f"<b>{breakdown.index:+.0f}</b><br><span style='font-size:10px'>mood index</span>", showarrow=False, font=dict(color=COLORS["text_primary"], size=18))
+            fig2.add_annotation(
+                text=f"<b>{breakdown.index:+.0f}</b><br><span style='font-size:10px'>mood index</span>",
+                showarrow=False,
+                font=dict(color=COLORS["text_primary"], size=18),
+            )
             apply_chart_theme(fig2, height=300, showlegend=True)
             st.plotly_chart(fig2, use_container_width=True)
 
@@ -1494,14 +1761,29 @@ def _render_live_dashboard() -> None:
         col_words, col_gauge = st.columns([2, 1])
 
         with col_words:
-            st.markdown(section_title("🔤", "Trending Terms", "Most frequent meaningful words across tracked titles"), unsafe_allow_html=True)
+            st.markdown(
+                section_title(
+                    "🔤",
+                    "Trending Terms",
+                    "Most frequent meaningful words across tracked titles",
+                ),
+                unsafe_allow_html=True,
+            )
             terms = top_terms(posts_all["title"], top_n=12)
             if terms:
                 words_df = pd.DataFrame(terms, columns=["word", "count"])
                 fig3 = go.Figure(
                     go.Bar(
-                        x=words_df["count"], y=words_df["word"], orientation="h",
-                        marker=dict(color=words_df["count"], colorscale=[[0, COLORS["brand_start"]], [1, COLORS["brand_end"]]]),
+                        x=words_df["count"],
+                        y=words_df["word"],
+                        orientation="h",
+                        marker=dict(
+                            color=words_df["count"],
+                            colorscale=[
+                                [0, COLORS["brand_start"]],
+                                [1, COLORS["brand_end"]],
+                            ],
+                        ),
                     )
                 )
                 fig3.update_layout(yaxis=dict(categoryorder="total ascending"))
@@ -1511,14 +1793,25 @@ def _render_live_dashboard() -> None:
                 st.info("Not enough titles yet to surface trends.")
 
         with col_gauge:
-            st.markdown(section_title("💓", "Pulse Score", "Composite: velocity + mood + stability"), unsafe_allow_html=True)
+            st.markdown(
+                section_title(
+                    "💓", "Pulse Score", "Composite: velocity + mood + stability"
+                ),
+                unsafe_allow_html=True,
+            )
             gauge = go.Figure(
                 go.Indicator(
                     mode="gauge+number",
                     value=score,
-                    number=dict(suffix="", font=dict(color=COLORS["text_primary"], size=34)),
+                    number=dict(
+                        suffix="", font=dict(color=COLORS["text_primary"], size=34)
+                    ),
                     gauge=dict(
-                        axis=dict(range=[0, 100], tickcolor=COLORS["text_muted"], tickfont=dict(color=COLORS["text_muted"], size=9)),
+                        axis=dict(
+                            range=[0, 100],
+                            tickcolor=COLORS["text_muted"],
+                            tickfont=dict(color=COLORS["text_muted"], size=9),
+                        ),
                         bar=dict(color=COLORS["brand_end"], thickness=0.28),
                         bgcolor="rgba(0,0,0,0)",
                         borderwidth=0,
@@ -1533,34 +1826,72 @@ def _render_live_dashboard() -> None:
             )
             apply_chart_theme(gauge, height=220)
             st.plotly_chart(gauge, use_container_width=True)
-            st.caption(f"Status: **{score_label}** · velocity {velocity:g}/min · {breakdown.positive_pct}% positive mood")
+            st.caption(
+                f"Status: **{score_label}** · velocity {velocity:g}/min · {breakdown.positive_pct}% positive mood"
+            )
 
     # --------------------------------------------------------------------------
     # TAB 2 — Live Feed
     # --------------------------------------------------------------------------
     with tab_feed:
         st.markdown(
-            section_title("📰", "Live Feed", f"{len(filtered_posts)} posts match current filters · sorted by {st.session_state.sort_mode.lower()}"),
+            section_title(
+                "📰",
+                "Live Feed",
+                f"{len(filtered_posts)} posts match current filters · sorted by {st.session_state.sort_mode.lower()}",
+            ),
             unsafe_allow_html=True,
         )
 
         if filtered_posts.empty:
-            st.markdown(empty_state("🔍", "No posts match these filters", "Try widening the sentiment filter, lowering the minimum score, or clearing your search."), unsafe_allow_html=True)
+            st.markdown(
+                empty_state(
+                    "🔍",
+                    "No posts match these filters",
+                    "Try widening the sentiment filter, lowering the minimum score, or clearing your search.",
+                ),
+                unsafe_allow_html=True,
+            )
         else:
             page_size = 15
             total_pages = max(1, -(-len(filtered_posts) // page_size))
-            page = st.number_input("Page", min_value=1, max_value=total_pages, value=1, step=1) if total_pages > 1 else 1
+            page = (
+                st.number_input(
+                    "Page", min_value=1, max_value=total_pages, value=1, step=1
+                )
+                if total_pages > 1
+                else 1
+            )
             start = (page - 1) * page_size
-            page_df = filtered_posts.iloc[start:start + page_size]
+            page_df = filtered_posts.iloc[start : start + page_size]
 
             cards_html = "".join(
-                post_card(row.title, row.score, row.comments, row.sentiment, row.sentiment_label, row.timestamp, row.id)
+                post_card(
+                    row.title,
+                    row.score,
+                    row.comments,
+                    row.sentiment,
+                    row.sentiment_label,
+                    row.timestamp,
+                    row.id,
+                )
                 for row in page_df.itertuples()
             )
             st.markdown(cards_html, unsafe_allow_html=True)
 
-            csv = filtered_posts.drop(columns=["timestamp_dt", "engagement"], errors="ignore").to_csv(index=False).encode("utf-8")
-            st.download_button("⬇️ Export filtered feed (CSV)", data=csv, file_name="pulselite_feed.csv", mime="text/csv")
+            csv = (
+                filtered_posts.drop(
+                    columns=["timestamp_dt", "engagement"], errors="ignore"
+                )
+                .to_csv(index=False)
+                .encode("utf-8")
+            )
+            st.download_button(
+                "⬇️ Export filtered feed (CSV)",
+                data=csv,
+                file_name="pulselite_feed.csv",
+                mime="text/csv",
+            )
 
     # --------------------------------------------------------------------------
     # TAB 3 — Trends & Analytics
@@ -1569,14 +1900,33 @@ def _render_live_dashboard() -> None:
         col_a, col_b = st.columns(2)
 
         with col_a:
-            st.markdown(section_title("📉", "Rolling Sentiment", "8-post rolling average, chronological"), unsafe_allow_html=True)
+            st.markdown(
+                section_title(
+                    "📉", "Rolling Sentiment", "8-post rolling average, chronological"
+                ),
+                unsafe_allow_html=True,
+            )
             roll = rolling_sentiment(posts_all)
             if not roll.empty:
                 fig4 = go.Figure()
-                fig4.add_trace(go.Scatter(x=roll["timestamp_dt"], y=roll["sentiment"], mode="markers", name="Post sentiment",
-                                           marker=dict(size=5, color=COLORS["text_muted"], opacity=0.5)))
-                fig4.add_trace(go.Scatter(x=roll["timestamp_dt"], y=roll["rolling"], mode="lines", name="Rolling avg",
-                                           line=dict(color=COLORS["brand_end"], width=2.5)))
+                fig4.add_trace(
+                    go.Scatter(
+                        x=roll["timestamp_dt"],
+                        y=roll["sentiment"],
+                        mode="markers",
+                        name="Post sentiment",
+                        marker=dict(size=5, color=COLORS["text_muted"], opacity=0.5),
+                    )
+                )
+                fig4.add_trace(
+                    go.Scatter(
+                        x=roll["timestamp_dt"],
+                        y=roll["rolling"],
+                        mode="lines",
+                        name="Rolling avg",
+                        line=dict(color=COLORS["brand_end"], width=2.5),
+                    )
+                )
                 fig4.add_hline(y=0, line_dash="dot", line_color=COLORS["text_muted"])
                 apply_chart_theme(fig4, height=320, showlegend=True)
                 st.plotly_chart(fig4, use_container_width=True)
@@ -1584,7 +1934,14 @@ def _render_live_dashboard() -> None:
                 st.info("Need a few more timestamped posts to chart a trend.")
 
         with col_b:
-            st.markdown(section_title("🎯", "Engagement Landscape", "Score vs. comments, colored by sentiment"), unsafe_allow_html=True)
+            st.markdown(
+                section_title(
+                    "🎯",
+                    "Engagement Landscape",
+                    "Score vs. comments, colored by sentiment",
+                ),
+                unsafe_allow_html=True,
+            )
             if not posts_all.empty:
                 fig5 = go.Figure()
                 for label, color in SENTIMENT_COLOR_MAP.items():
@@ -1593,9 +1950,18 @@ def _render_live_dashboard() -> None:
                         continue
                     fig5.add_trace(
                         go.Scatter(
-                            x=sub["score"], y=sub["comments"], mode="markers", name=label.capitalize(),
-                            marker=dict(size=8, color=color, opacity=0.75, line=dict(width=1, color=COLORS["bg"])),
-                            text=sub["title"], hovertemplate="%{text}<br>Score: %{x} · Comments: %{y}<extra></extra>",
+                            x=sub["score"],
+                            y=sub["comments"],
+                            mode="markers",
+                            name=label.capitalize(),
+                            marker=dict(
+                                size=8,
+                                color=color,
+                                opacity=0.75,
+                                line=dict(width=1, color=COLORS["bg"]),
+                            ),
+                            text=sub["title"],
+                            hovertemplate="%{text}<br>Score: %{x} · Comments: %{y}<extra></extra>",
                         )
                     )
                 fig5.update_xaxes(title_text="HN Score")
@@ -1607,11 +1973,18 @@ def _render_live_dashboard() -> None:
         col_c, col_d = st.columns([1, 1])
 
         with col_c:
-            st.markdown(section_title("🏆", "Top Engaging Posts", "Ranked by score + 2× comments"), unsafe_allow_html=True)
+            st.markdown(
+                section_title(
+                    "🏆", "Top Engaging Posts", "Ranked by score + 2× comments"
+                ),
+                unsafe_allow_html=True,
+            )
             leaders = top_engaging_posts(posts_all, n=6)
             if not leaders.empty:
                 rows_html = "".join(
-                    leaderboard_row(i + 1, row.title, row.score, row.comments, row.sentiment_label)
+                    leaderboard_row(
+                        i + 1, row.title, row.score, row.comments, row.sentiment_label
+                    )
                     for i, row in enumerate(leaders.itertuples())
                 )
                 st.markdown(rows_html, unsafe_allow_html=True)
@@ -1619,99 +1992,157 @@ def _render_live_dashboard() -> None:
                 st.info("No engagement data yet.")
 
         with col_d:
-            st.markdown(section_title("🗓️", "Activity Heatmap", "Post volume by weekday & hour"), unsafe_allow_html=True)
+            st.markdown(
+                section_title("🗓️", "Activity Heatmap", "Post volume by weekday & hour"),
+                unsafe_allow_html=True,
+            )
             heat = hourly_activity(posts_all)
             if not heat.empty and heat.shape[1] > 1:
                 fig6 = go.Figure(
                     go.Heatmap(
-                        z=heat.values, x=[f"{h:02d}:00" for h in heat.columns], y=list(heat.index),
-                        colorscale=[[0, COLORS["surface"]], [1, COLORS["brand_end"]]], showscale=False,
+                        z=heat.values,
+                        x=[f"{h:02d}:00" for h in heat.columns],
+                        y=list(heat.index),
+                        colorscale=[[0, COLORS["surface"]], [1, COLORS["brand_end"]]],
+                        showscale=False,
                     )
                 )
                 apply_chart_theme(fig6, height=320)
                 st.plotly_chart(fig6, use_container_width=True)
             else:
-                st.info("Heatmap needs activity spread across more hours — check back later.")
+                st.info(
+                    "Heatmap needs activity spread across more hours — check back later."
+                )
 
-    # --------------------------------------------------------------------------
-    # TAB 4 — Anomalies
-    # --------------------------------------------------------------------------
-        st.markdown('<br>', unsafe_allow_html=True)
-        st.info('Drift detection: accumulating data - check back in 2 minutes.')
+        # --------------------------------------------------------------------------
+        # TAB 4 — Anomalies
+        # --------------------------------------------------------------------------
+        st.markdown("<br>", unsafe_allow_html=True)
+        st.info("Drift detection: accumulating data - check back in 2 minutes.")
 
-        st.markdown('<br>', unsafe_allow_html=True)
-        st.markdown(section_title('🌊', 'Topic Drift Score', 'Cosine distance between consecutive 5-minute embedding centroids'), unsafe_allow_html=True)
+        st.markdown("<br>", unsafe_allow_html=True)
+        st.markdown(
+            section_title(
+                "🌊",
+                "Topic Drift Score",
+                "Cosine distance between consecutive 5-minute embedding centroids",
+            ),
+            unsafe_allow_html=True,
+        )
         try:
             import pandas as _pd
-            _drift = _pd.read_csv('data_drift.csv')
+
+            _drift = _pd.read_csv("data_drift.csv")
             if len(_drift) > 1:
-                _drift['ts'] = _pd.to_datetime(_drift['timestamp'], errors='coerce')
-                _latest_score = float(_drift['drift_score'].iloc[-1])
+                _drift["ts"] = _pd.to_datetime(_drift["timestamp"], errors="coerce")
+                _latest_score = float(_drift["drift_score"].iloc[-1])
                 _col1, _col2 = st.columns([2, 1])
                 with _col1:
                     _fig_d = go.Figure()
-                    _fig_d.add_trace(go.Scatter(
-                        x=_drift['ts'], y=_drift['drift_score'],
-                        mode='lines+markers',
-                        line=dict(color=COLORS['brand_mid'], width=2.5),
-                        fill='tozeroy', fillcolor='rgba(139,92,246,0.1)',
-                        name='Drift Score'
-                    ))
-                    _fig_d.add_hline(y=0.3, line_dash='dot',
-                        line_color=COLORS['negative'],
-                        annotation_text='Threshold 0.3',
-                        annotation_font_color=COLORS['negative'])
+                    _fig_d.add_trace(
+                        go.Scatter(
+                            x=_drift["ts"],
+                            y=_drift["drift_score"],
+                            mode="lines+markers",
+                            line=dict(color=COLORS["brand_mid"], width=2.5),
+                            fill="tozeroy",
+                            fillcolor="rgba(139,92,246,0.1)",
+                            name="Drift Score",
+                        )
+                    )
+                    _fig_d.add_hline(
+                        y=0.3,
+                        line_dash="dot",
+                        line_color=COLORS["negative"],
+                        annotation_text="Threshold 0.3",
+                        annotation_font_color=COLORS["negative"],
+                    )
                     apply_chart_theme(_fig_d, height=280, showlegend=True)
                     st.plotly_chart(_fig_d, use_container_width=True)
                 with _col2:
-                    _gauge = go.Figure(go.Indicator(
-                        mode='gauge+number',
-                        value=round(_latest_score, 3),
-                        number=dict(font=dict(color=COLORS['text_primary'], size=28)),
-                        gauge=dict(
-                            axis=dict(range=[0, 1]),
-                            bar=dict(color=COLORS['brand_mid'] if _latest_score < 0.3 else COLORS['negative'], thickness=0.3),
-                            bgcolor='rgba(0,0,0,0)', borderwidth=0,
-                            steps=[
-                                dict(range=[0, 0.3], color='rgba(34,197,94,0.15)'),
-                                dict(range=[0.3, 0.6], color='rgba(245,158,11,0.15)'),
-                                dict(range=[0.6, 1], color='rgba(244,63,94,0.15)')
-                            ]
+                    _gauge = go.Figure(
+                        go.Indicator(
+                            mode="gauge+number",
+                            value=round(_latest_score, 3),
+                            number=dict(
+                                font=dict(color=COLORS["text_primary"], size=28)
+                            ),
+                            gauge=dict(
+                                axis=dict(range=[0, 1]),
+                                bar=dict(
+                                    color=(
+                                        COLORS["brand_mid"]
+                                        if _latest_score < 0.3
+                                        else COLORS["negative"]
+                                    ),
+                                    thickness=0.3,
+                                ),
+                                bgcolor="rgba(0,0,0,0)",
+                                borderwidth=0,
+                                steps=[
+                                    dict(range=[0, 0.3], color="rgba(34,197,94,0.15)"),
+                                    dict(
+                                        range=[0.3, 0.6], color="rgba(245,158,11,0.15)"
+                                    ),
+                                    dict(range=[0.6, 1], color="rgba(244,63,94,0.15)"),
+                                ],
+                            ),
                         )
-                    ))
+                    )
                     _gauge.update_layout(
-                        plot_bgcolor='rgba(0,0,0,0)',
-                        paper_bgcolor='rgba(0,0,0,0)',
-                        font=dict(color=COLORS['text_secondary']),
+                        plot_bgcolor="rgba(0,0,0,0)",
+                        paper_bgcolor="rgba(0,0,0,0)",
+                        font=dict(color=COLORS["text_secondary"]),
                         margin=dict(l=10, r=10, t=30, b=10),
-                        height=220
+                        height=220,
                     )
                     st.plotly_chart(_gauge, use_container_width=True)
-                    _status = 'DRIFTING' if _latest_score > 0.3 else 'STABLE'
-                    _color = COLORS['negative'] if _latest_score > 0.3 else COLORS['positive']
-                    st.markdown(f'<div style="text-align:center;font-weight:700;color:{_color};font-size:1.1rem">{_status}</div>', unsafe_allow_html=True)
-                _high = _drift[_drift['drift_score'] > 0.3].tail(3)
-                if not _high.empty and 'before_titles' in _drift.columns:
-                    st.markdown('<br>', unsafe_allow_html=True)
-                    st.markdown(section_title('🔀', 'What Changed — Before vs After Drift'), unsafe_allow_html=True)
+                    _status = "DRIFTING" if _latest_score > 0.3 else "STABLE"
+                    _color = (
+                        COLORS["negative"]
+                        if _latest_score > 0.3
+                        else COLORS["positive"]
+                    )
+                    st.markdown(
+                        f'<div style="text-align:center;font-weight:700;color:{_color};font-size:1.1rem">{_status}</div>',
+                        unsafe_allow_html=True,
+                    )
+                _high = _drift[_drift["drift_score"] > 0.3].tail(3)
+                if not _high.empty and "before_titles" in _drift.columns:
+                    st.markdown("<br>", unsafe_allow_html=True)
+                    st.markdown(
+                        section_title("🔀", "What Changed — Before vs After Drift"),
+                        unsafe_allow_html=True,
+                    )
                     for _, _row in _high.iterrows():
-                        _before = str(_row.get('before_titles', ''))[:150]
-                        _after = str(_row.get('after_titles', ''))[:150]
-                        _ts = str(_row['timestamp'])[:19]
-                        _sc = _row['drift_score']
-                        st.markdown(f'''<div class="pl-alert-card">
+                        _before = str(_row.get("before_titles", ""))[:150]
+                        _after = str(_row.get("after_titles", ""))[:150]
+                        _ts = str(_row["timestamp"])[:19]
+                        _sc = _row["drift_score"]
+                        st.markdown(
+                            f"""<div class="pl-alert-card">
                             <b>🕐 {_ts}</b> &nbsp;·&nbsp; Score: <b>{_sc:.3f}</b><br><br>
                             <b style="color:{COLORS['neutral']}">BEFORE:</b> {_before}<br>
                             <b style="color:{COLORS['brand_end']}">AFTER &nbsp;:</b> {_after}
-                        </div>''', unsafe_allow_html=True)
+                        </div>""",
+                            unsafe_allow_html=True,
+                        )
             else:
-                st.info('Accumulating drift data — needs 2+ minute windows.')
+                st.info("Accumulating drift data — needs 2+ minute windows.")
         except Exception as _e:
-            st.info(f'Drift detection warming up...')
+            st.info("Drift detection warming up...")
     st.markdown("<br>", unsafe_allow_html=True)
-    st.markdown(section_title("🔗", "Stream-Stream Join: Trend Correlation", "Pearson correlation between HN New Stories vs Top Stories volume"), unsafe_allow_html=True)
+    st.markdown(
+        section_title(
+            "🔗",
+            "Stream-Stream Join: Trend Correlation",
+            "Pearson correlation between HN New Stories vs Top Stories volume",
+        ),
+        unsafe_allow_html=True,
+    )
     try:
         import pandas as _pd2
+
         _corr_path = "data_correlation.csv"
         if os.path.exists(_corr_path):
             _corr_df = _pd2.read_csv(_corr_path)
@@ -1719,44 +2150,72 @@ def _render_live_dashboard() -> None:
                 _col1, _col2 = st.columns([2, 1])
                 with _col1:
                     _fig_corr = go.Figure()
-                    _fig_corr.add_trace(go.Scatter(
-                        x=_corr_df.index, y=_corr_df["new_volume"],
-                        name="New Stories", mode="lines+markers",
-                        line=dict(color=COLORS["brand_end"], width=2)
-                    ))
-                    _fig_corr.add_trace(go.Scatter(
-                        x=_corr_df.index, y=_corr_df["top_volume"],
-                        name="Top Stories", mode="lines+markers",
-                        line=dict(color=COLORS["warning"], width=2)
-                    ))
+                    _fig_corr.add_trace(
+                        go.Scatter(
+                            x=_corr_df.index,
+                            y=_corr_df["new_volume"],
+                            name="New Stories",
+                            mode="lines+markers",
+                            line=dict(color=COLORS["brand_end"], width=2),
+                        )
+                    )
+                    _fig_corr.add_trace(
+                        go.Scatter(
+                            x=_corr_df.index,
+                            y=_corr_df["top_volume"],
+                            name="Top Stories",
+                            mode="lines+markers",
+                            line=dict(color=COLORS["warning"], width=2),
+                        )
+                    )
                     apply_chart_theme(_fig_corr, height=260, showlegend=True)
                     st.plotly_chart(_fig_corr, use_container_width=True)
                 with _col2:
                     _latest_corr = float(_corr_df["correlation"].iloc[-1])
-                    _corr_gauge = go.Figure(go.Indicator(
-                        mode="gauge+number",
-                        value=round(_latest_corr, 3),
-                        number=dict(font=dict(color=COLORS["text_primary"], size=28)),
-                        gauge=dict(
-                            axis=dict(range=[-1, 1]),
-                            bar=dict(color=COLORS["brand_end"] if _latest_corr > 0.5 else COLORS["warning"] if _latest_corr > 0 else COLORS["negative"], thickness=0.3),
-                            bgcolor="rgba(0,0,0,0)", borderwidth=0,
-                            steps=[
-                                dict(range=[-1, 0], color="rgba(244,63,94,0.15)"),
-                                dict(range=[0, 0.5], color="rgba(245,158,11,0.15)"),
-                                dict(range=[0.5, 1], color="rgba(34,197,94,0.15)")
-                            ]
+                    _corr_gauge = go.Figure(
+                        go.Indicator(
+                            mode="gauge+number",
+                            value=round(_latest_corr, 3),
+                            number=dict(
+                                font=dict(color=COLORS["text_primary"], size=28)
+                            ),
+                            gauge=dict(
+                                axis=dict(range=[-1, 1]),
+                                bar=dict(
+                                    color=(
+                                        COLORS["brand_end"]
+                                        if _latest_corr > 0.5
+                                        else (
+                                            COLORS["warning"]
+                                            if _latest_corr > 0
+                                            else COLORS["negative"]
+                                        )
+                                    ),
+                                    thickness=0.3,
+                                ),
+                                bgcolor="rgba(0,0,0,0)",
+                                borderwidth=0,
+                                steps=[
+                                    dict(range=[-1, 0], color="rgba(244,63,94,0.15)"),
+                                    dict(range=[0, 0.5], color="rgba(245,158,11,0.15)"),
+                                    dict(range=[0.5, 1], color="rgba(34,197,94,0.15)"),
+                                ],
+                            ),
                         )
-                    ))
+                    )
                     _corr_gauge.update_layout(
                         plot_bgcolor="rgba(0,0,0,0)",
                         paper_bgcolor="rgba(0,0,0,0)",
                         font=dict(color=COLORS["text_secondary"]),
                         margin=dict(l=10, r=10, t=30, b=10),
-                        height=220
+                        height=220,
                     )
                     st.plotly_chart(_corr_gauge, use_container_width=True)
-                    _corr_label = "Strong positive" if _latest_corr > 0.7 else "Moderate" if _latest_corr > 0.3 else "Weak/No correlation"
+                    _corr_label = (
+                        "Strong positive"
+                        if _latest_corr > 0.7
+                        else "Moderate" if _latest_corr > 0.3 else "Weak/No correlation"
+                    )
                     st.caption(f"Correlation: **{_latest_corr:.3f}** — {_corr_label}")
             else:
                 st.info("Stream join needs 5+ minutes of data from both topics.")
@@ -1768,26 +2227,62 @@ def _render_live_dashboard() -> None:
         col_e, col_f = st.columns([1, 1])
 
         with col_e:
-            st.markdown(section_title("🚨", "Processor-Flagged Alerts", "3× rolling-average rule from the stream processor"), unsafe_allow_html=True)
+            st.markdown(
+                section_title(
+                    "🚨",
+                    "Processor-Flagged Alerts",
+                    "3× rolling-average rule from the stream processor",
+                ),
+                unsafe_allow_html=True,
+            )
             if not alerts_df.empty:
                 alerts_html = "".join(
-                    alert_card(row.timestamp, row.post_count, row.rolling_avg) for row in alerts_df.itertuples()
+                    alert_card(row.timestamp, row.post_count, row.rolling_avg)
+                    for row in alerts_df.itertuples()
                 )
                 st.markdown(alerts_html, unsafe_allow_html=True)
-                csv_alerts = alerts_df.drop(columns=["timestamp_dt"], errors="ignore").to_csv(index=False).encode("utf-8")
-                st.download_button("⬇️ Export alerts (CSV)", data=csv_alerts, file_name="pulselite_alerts.csv", mime="text/csv")
+                csv_alerts = (
+                    alerts_df.drop(columns=["timestamp_dt"], errors="ignore")
+                    .to_csv(index=False)
+                    .encode("utf-8")
+                )
+                st.download_button(
+                    "⬇️ Export alerts (CSV)",
+                    data=csv_alerts,
+                    file_name="pulselite_alerts.csv",
+                    mime="text/csv",
+                )
             else:
-                st.markdown(empty_state("✅", "No anomalies detected", "Volume has stayed within normal bounds."), unsafe_allow_html=True)
+                st.markdown(
+                    empty_state(
+                        "✅",
+                        "No anomalies detected",
+                        "Volume has stayed within normal bounds.",
+                    ),
+                    unsafe_allow_html=True,
+                )
 
         with col_f:
-            st.markdown(section_title("📐", "Statistical Overlay", "z-score outliers (|z| ≥ 2) — independent of the processor rule"), unsafe_allow_html=True)
+            st.markdown(
+                section_title(
+                    "📐",
+                    "Statistical Overlay",
+                    "z-score outliers (|z| ≥ 2) — independent of the processor rule",
+                ),
+                unsafe_allow_html=True,
+            )
             if len(volume_df) >= 4:
                 mean = volume_df["post_count"].mean()
                 std = volume_df["post_count"].std(ddof=0) or 1
                 zdf = volume_df.copy()
                 zdf["zscore"] = (zdf["post_count"] - mean) / std
-                colors = [COLORS["negative"] if abs(z) >= 2 else COLORS["brand_start"] for z in zdf["zscore"]]
-                fig7 = go.Figure(go.Bar(x=zdf["minute_dt"], y=zdf["zscore"], marker_color=colors))
+                colors = [
+                    COLORS["negative"] if abs(z) >= 2 else COLORS["brand_start"]
+                    for z in zdf["zscore"]
+                ]
+                fig7 = go.Figure(
+                    go.Bar(x=zdf["minute_dt"], y=zdf["zscore"], marker_color=colors)
+                )
                 fig7.add_hline(y=2, line_dash="dot", line_color=COLORS["negative"])
                 fig7.add_hline(y=-2, line_dash="dot", line_color=COLORS["negative"])
                 apply_chart_theme(fig7, height=320)
@@ -1801,15 +2296,31 @@ def _render_live_dashboard() -> None:
     with tab_pipeline:
         st.markdown(section_title("⚙️", "Pipeline Components"), unsafe_allow_html=True)
         p1, p2, p3, p4 = st.columns(4)
-        stage_status = "Streaming" if status.state == "LIVE" else ("Delayed" if status.state == "IDLE" else "Check process")
+        stage_status = (
+            "Streaming"
+            if status.state == "LIVE"
+            else ("Delayed" if status.state == "IDLE" else "Check process")
+        )
         with p1:
-            st.markdown(pipeline_card("📡", "Hacker News API", "Source reachable"), unsafe_allow_html=True)
+            st.markdown(
+                pipeline_card("📡", "Hacker News API", "Source reachable"),
+                unsafe_allow_html=True,
+            )
         with p2:
-            st.markdown(pipeline_card("📨", "Kafka Topic: hn-posts", stage_status), unsafe_allow_html=True)
+            st.markdown(
+                pipeline_card("📨", "Kafka Topic: hn-posts", stage_status),
+                unsafe_allow_html=True,
+            )
         with p3:
-            st.markdown(pipeline_card("🧠", "VADER Processor", stage_status), unsafe_allow_html=True)
+            st.markdown(
+                pipeline_card("🧠", "VADER Processor", stage_status),
+                unsafe_allow_html=True,
+            )
         with p4:
-            st.markdown(pipeline_card("🗄️", "CSV Store", "Connected" if has_data else "Empty"), unsafe_allow_html=True)
+            st.markdown(
+                pipeline_card("🗄️", "CSV Store", "Connected" if has_data else "Empty"),
+                unsafe_allow_html=True,
+            )
 
         st.write("")
         col_g, col_h = st.columns([1, 1])
@@ -1828,12 +2339,18 @@ def _render_live_dashboard() -> None:
             )
             st.dataframe(counts_df, use_container_width=True, hide_index=True)
             st.write("")
-            st.markdown(section_title("⚡", "Throughput & Latency"), unsafe_allow_html=True)
+            st.markdown(
+                section_title("⚡", "Throughput & Latency"), unsafe_allow_html=True
+            )
             m1, m2, m3 = st.columns(3)
 
             with m1:
                 lag = get_kafka_lag()
-                lag_display = "N/A (Demo Mode)" if DEMO_MODE else (str(lag) if lag is not None else "Unavailable")
+                lag_display = (
+                    "N/A (Demo Mode)"
+                    if DEMO_MODE
+                    else (str(lag) if lag is not None else "Unavailable")
+                )
                 st.metric("Consumer Lag", lag_display)
                 st.caption("Messages waiting to be processed")
 
@@ -1862,6 +2379,7 @@ def _render_live_dashboard() -> None:
         st.markdown(section_title("📋", "Schema Registry"), unsafe_allow_html=True)
         try:
             import requests as _req
+
             _sr = _req.get("http://localhost:8081/subjects", timeout=2)
             if _sr.status_code == 200:
                 _subjects = _sr.json()
@@ -1872,9 +2390,15 @@ def _render_live_dashboard() -> None:
                     st.caption(f"Subjects: {', '.join(_subjects)}")
                 with _col2:
                     try:
-                        _versions = _req.get("http://localhost:8081/subjects/hn-posts-value/versions", timeout=2).json()
+                        _versions = _req.get(
+                            "http://localhost:8081/subjects/hn-posts-value/versions",
+                            timeout=2,
+                        ).json()
                         st.metric("Schema Versions", len(_versions))
-                        _latest = _req.get(f"http://localhost:8081/subjects/hn-posts-value/versions/{_versions[-1]}", timeout=2).json()
+                        _latest = _req.get(
+                            f"http://localhost:8081/subjects/hn-posts-value/versions/{_versions[-1]}",
+                            timeout=2,
+                        ).json()
                         st.caption(f"Latest schema ID: {_latest.get('id', 'N/A')}")
                     except Exception:
                         st.caption("No versions yet")
@@ -1884,7 +2408,8 @@ def _render_live_dashboard() -> None:
             st.warning("⚠️ Schema Registry not reachable — is it running?")
         st.markdown(section_title("🏗️", "Architecture"), unsafe_allow_html=True)
         st.markdown(
-            _raw(f"""
+            _raw(
+                f"""
             <div class="pl-diagram">{SOURCE_LABEL} API
        │  (poll new + top stories)
        ▼
@@ -1900,10 +2425,10 @@ def _render_live_dashboard() -> None:
     CSV store: {CSV_POSTS} · {CSV_VOLUME} · {CSV_ALERTS}
        ▼
     PulseLite Dashboard  (you are here)</div>
-            """),
+            """
+            ),
             unsafe_allow_html=True,
         )
-
 
     # ==========================================================================
     # Footer + auto-refresh
@@ -1912,17 +2437,18 @@ def _render_live_dashboard() -> None:
     st.divider()
     countdown = st.session_state.refresh_seconds
     st.markdown(
-        _raw(f"""
+        _raw(
+            f"""
         <div class="pl-footer">
             {"⏱ Auto-refreshing every " + str(countdown) + "s" if st.session_state.auto_refresh else "⏸ Auto-refresh paused"}
             &nbsp;·&nbsp; Built with Streamlit + Plotly + CSV
             &nbsp;·&nbsp; <a href="https://github.com/Dewesh10/pulselite" target="_blank">{APP_NAME} on GitHub</a>
             &nbsp;·&nbsp; {AUTHOR}
         </div>
-        """),
+        """
+        ),
         unsafe_allow_html=True,
     )
-
 
 
 # Clock refreshes every second, data refreshes on the user-set interval
@@ -1930,8 +2456,7 @@ st_autorefresh(interval=1000, key="pulselite_clock")
 
 if st.session_state.auto_refresh:
     st_autorefresh(
-        interval=st.session_state.refresh_seconds * 1000,
-        key="pulselite_refresh"
+        interval=st.session_state.refresh_seconds * 1000, key="pulselite_refresh"
     )
 
 clear_all_caches()
