@@ -15,11 +15,11 @@ PulseLite ingests Hacker News in real time through Kafka and surfaces:
 - 📈 **Post volume per minute**, live-updating with a rolling average
 - 😊 **Sentiment analysis** (VADER) — positive / negative / neutral, plus a composite mood index
 - 🔤 **Trending terms** — most frequent meaningful words across tracked titles
-- 🚨 **Anomaly detection** — dual-layer: a 3× rolling-average rule from the stream processor, plus an independent statistical z-score overlay computed in the dashboard
+- 🚨 **Anomaly detection** — dual-layer: a 3× rolling-average rule from the stream processor, plus an independent statistical z-score overlay computed in the dashboard, with Discord webhook alerts when a spike fires
 - 🔗 **Cross-topic correlation** — a stream-stream join between "new stories" and "top stories" topics, correlating volume with Pearson's r
 - 🧭 **Topic drift detection** — sentence-embedding comparison between time windows to catch when the conversation actually shifts topic, not just volume
 - 💓 **Pulse Score** — a single 0–100 composite index blending velocity, sentiment, and stability
-- ⚙️ **Pipeline health** — schema registry status, table row counts, data quality checks, freshness/liveness badge
+- ⚙️ **Pipeline health** — schema registry status, table row counts, real Kafka consumer lag, throughput, end-to-end latency, and freshness/liveness badge
 
 ## Two dashboards, one pipeline
 
@@ -36,6 +36,11 @@ Both read from the same CSV files produced by the pipeline, so whichever one
 you run, it reflects the same live (or demo) data.
 
 ## Architecture
+
+![Architecture Diagram](docs/architecture.svg)
+
+<details>
+<summary>Mermaid source (click to expand)</summary>
 
 ```mermaid
 graph LR
@@ -74,6 +79,8 @@ graph LR
     DASH2 -->|Local URL| USER
 ```
 
+</details>
+
 Full component-by-component breakdown: [`docs/architecture.md`](docs/architecture.md)
 
 ## Tech Stack
@@ -90,38 +97,52 @@ Full component-by-component breakdown: [`docs/architecture.md`](docs/architectur
 | Narrative summary | Anthropic API (Claude Haiku) | LLM-generated Pulse Digest, rule-based fallback if no key (see [ADR-006](docs/adr/adr-006-pulse-digest.md)) |
 | Storage | CSV | Lock-free handoff between processor and dashboard, no concurrent-writer issues |
 | Dashboards | Streamlit + Plotly, and Flask + Plotly | Two front ends over the same backend — see comparison above |
+| Alerting | Discord webhooks | Real-time push notification when a volume anomaly fires |
 | CI | GitHub Actions | Runs the test suite on every push |
+| Code quality | pre-commit (black + ruff) | Consistent formatting and linting on every commit |
 | Containers | Docker Compose | Runs Kafka + Zookeeper + Schema Registry without manual install |
 | Deployment | Streamlit Cloud | Public demo |
 
 ## How to Run Locally
 
+### Prerequisites
+- Python 3.11+
+- Docker Desktop
+- Git
+
+### Install
+
+```powershell
+git clone https://github.com/Dewesh10/pulselite.git
+cd pulselite
+venv\Scripts\activate
+pip install -r requirements.txt
+```
+
+Copy `.env.example` to `.env` and fill in any optional keys (`ANTHROPIC_API_KEY` for LLM digests, `DISCORD_WEBHOOK_URL` for anomaly alerts) — both are optional; the app falls back gracefully without them.
+
+### Run
+
 ```powershell
 # 1. Start Kafka + Zookeeper + Schema Registry
 docker-compose up -d
 
-# 2. Activate your virtual environment
-venv\Scripts\activate
-pip install -r requirements.txt
-
-# 3. Terminal 1 — new-stories producer
+# 2. Terminal 1 — new-stories producer
 python producer/reddit_producer.py
 
-# 4. Terminal 2 — top-stories producer
+# 3. Terminal 2 — top-stories producer
 python producer/top_producer.py
 
-# 5. Terminal 3 — stream processor (sentiment, volume, anomalies, drift)
+# 4. Terminal 3 — stream processor (sentiment, volume, anomalies, drift)
 python processor/spark_processor.py
 
-# 6. Terminal 4 — stream join (cross-topic correlation)
+# 5. Terminal 4 — stream join (cross-topic correlation)
 python processor/stream_join.py
 
-# 7. Terminal 5 — Pulse Digest generator (narrative summary, refreshes every 5 min)
-# Optional: set ANTHROPIC_API_KEY first for LLM-generated digests, otherwise
-# it uses a rule-based fallback automatically — see .env.example
+# 6. Terminal 5 — Pulse Digest generator (narrative summary, refreshes every 5 min)
 python processor/digest_generator.py
 
-# 8. Terminal 6 — pick a dashboard:
+# 7. Terminal 6 — pick a dashboard:
 
 # Streamlit
 streamlit run dashboard/app.py
@@ -149,28 +170,38 @@ python flask_dashboard/app.py
 > background. Run locally with the full pipeline above to see real,
 > currently-streaming data on either dashboard.
 
-## Testing
+### Test
 
 ```powershell
 pip install -r requirements-test.txt
 pytest tests/ -v
 ```
 
-21 tests covering sentiment scoring, anomaly detection boundaries, producer
-retry logic, and Pulse Digest generation (stats gathering, fallback digest
-content, and CSV output). Runs automatically on every push via GitHub Actions.
+26 tests covering sentiment scoring, anomaly detection boundaries, producer
+retry logic, Pulse Digest generation, and Avro schema compatibility (ADR-004).
+Runs automatically on every push via GitHub Actions.
+
+## Data Sources
+
+Hacker News public API (`hacker-news.firebaseio.com`) — no authentication
+required. Two endpoints are polled every 30 seconds: `newstories.json` and
+`topstories.json`, followed by per-item lookups for title, score, and
+comment count.
 
 ## Pipeline Status
 
 - ✅ Data source — Hacker News API (new stories + top stories)
 - ✅ Kafka message queue — Avro-serialized, Schema Registry-validated
-- ✅ Stream processor — VADER sentiment, volume, anomaly detection, drift detection
+- ✅ Stream processor — VADER sentiment, volume, anomaly detection, drift detection, dedup, retry/backoff, graceful shutdown, dead-letter handling
 - ✅ Stream-stream join — cross-topic correlation
 - ✅ Pulse Digest — LLM-generated narrative summary with rule-based fallback
 - ✅ CSV storage — lock-free handoff
 - ✅ Streamlit dashboard — 5 tabs (Overview, Live Feed, Trends & Analytics, Anomalies, Pipeline Health) + Demo Mode
 - ✅ Flask dashboard — feature parity with Streamlit version, same 5 sections + Demo Mode
+- ✅ Pipeline Health — real Kafka consumer lag, throughput, end-to-end latency
+- ✅ Discord webhook alerts on anomaly detection
 - ✅ CI — automated test suite on every push
+- ✅ Pre-commit hooks — black + ruff on every commit
 
 ## Architecture Decision Records
 
@@ -184,6 +215,36 @@ content, and CSV output). Runs automatically on every push via GitHub Actions.
 Also see [`docs/design_doc.md`](docs/design_doc.md) for the original problem
 statement and [`docs/learning-notes.md`](docs/learning-notes.md) for what
 actually broke along the way.
+
+## Mini-Extension
+
+The anomaly detector (3× rolling-average rule) is the required mini-extension
+for this problem statement (H3). It's implemented in `check_anomaly()` inside
+`processor/spark_processor.py`, and extended beyond the minimum with a
+Discord webhook push notification the moment a spike fires — turning a
+logged event into something you'd actually notice in real time.
+
+## Known Limitations
+
+- Deduplication is in-memory only — resets on producer restart, so a restart
+  can briefly re-send recently seen posts
+- The hosted Streamlit Cloud demo sleeps after inactivity (free-tier
+  behavior) and shows replayed Demo Mode data, not a live pipeline
+- Consumer lag metric requires a locally running Kafka instance — shows
+  "N/A" in Demo Mode
+
+## What I'd Do in 3rd Year
+
+See [`roadmap_3rd_year.md`](roadmap_3rd_year.md) for the full extension
+plan — moving toward exactly-once semantics, late-arrival handling with
+watermarks, a second stream-stream join extension, and eventually migrating
+from Kafka Streams-style processing to Flink.
+
+## License & Acknowledgements
+
+Licensed under MIT — see [`LICENSE`](LICENSE). Built as part of the B.Tech
+CSE-AIDE Data Engineering internship (Segment 2, Problem H3 — Real-time
+Hashtag Pulse).
 
 ## Author
 
