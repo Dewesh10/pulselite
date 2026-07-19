@@ -11,6 +11,11 @@ from sentence_transformers import SentenceTransformer
 from datetime import datetime, timezone
 import signal
 import sys
+import requests
+from dotenv import load_dotenv
+
+load_dotenv()
+DISCORD_WEBHOOK_URL = os.environ.get("DISCORD_WEBHOOK_URL")
 
 
 KAFKA_TOPIC = "hn-posts"
@@ -117,7 +122,24 @@ def check_anomaly(minute_bucket, current_minute, current_count):
         with open(CSV_ALERTS, "a", newline="", encoding="utf-8") as f:
             csv.writer(f).writerow([now, current_count, round(avg, 2)])
         print(f"🚨 ANOMALY DETECTED! Count: {current_count}, Avg: {avg:.1f}")
+        send_discord_alert(current_count, avg, now)
 
+def send_discord_alert(current_count, avg, timestamp):
+    """Post an anomaly alert to Discord, if a webhook URL is configured."""
+    if not DISCORD_WEBHOOK_URL:
+        return
+    message = {
+        "content": (
+            f"🚨 **Anomaly Detected — PulseLite**\n"
+            f"Post volume spiked to **{current_count}** posts/min "
+            f"(rolling avg: {avg:.1f})\n"
+            f"Time: `{timestamp}`"
+        )
+    }
+    try:
+        requests.post(DISCORD_WEBHOOK_URL, json=message, timeout=5)
+    except Exception as e:
+        print(f"⚠️ Failed to send Discord alert: {e}")
 
 def compute_drift(current_window_titles, previous_window_titles, sample_title):
     if len(current_window_titles) < 3 or len(previous_window_titles) < 3:
