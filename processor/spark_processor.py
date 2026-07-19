@@ -55,7 +55,7 @@ def get_sentiment(text):
 def init_csvs():
     if not os.path.exists(CSV_POSTS):
         with open(CSV_POSTS, "w", newline="", encoding="utf-8") as f:
-            csv.writer(f).writerow(["id", "title", "score", "comments", "sentiment", "sentiment_label", "timestamp"])
+            csv.writer(f).writerow(["id", "title", "score", "comments", "sentiment", "sentiment_label", "timestamp", "processed_at"])
     if not os.path.exists(CSV_VOLUME):
         with open(CSV_VOLUME, "w", newline="", encoding="utf-8") as f:
             csv.writer(f).writerow(["minute", "post_count"])
@@ -71,8 +71,9 @@ def save_post(post_id, title, hn_score, comments, sentiment, label, timestamp):
     if post_id in seen_ids:
         return
     seen_ids.add(post_id)
+    processed_at = datetime.now(timezone.utc).isoformat()
     with open(CSV_POSTS, "a", newline="", encoding="utf-8") as f:
-        csv.writer(f).writerow([post_id, title, hn_score, comments, sentiment, label, timestamp])
+        csv.writer(f).writerow([post_id, title, hn_score, comments, sentiment, label, timestamp, processed_at])
 
 
 def update_volume(minute_bucket, minute):

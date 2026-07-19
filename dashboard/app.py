@@ -182,6 +182,8 @@ def load_posts(limit: int = 1000) -> pd.DataFrame:
         if df.empty:
             return df
         df["timestamp_dt"] = pd.to_datetime(df["timestamp"], errors="coerce")
+        if "processed_at" in df.columns:
+            df["processed_at_dt"] = pd.to_datetime(df["processed_at"], errors="coerce")
         df["score"] = pd.to_numeric(df["score"], errors="coerce").fillna(0)
         df["comments"] = pd.to_numeric(df["comments"], errors="coerce").fillna(0)
         df["sentiment"] = pd.to_numeric(df["sentiment"], errors="coerce").fillna(0.0)
@@ -504,6 +506,63 @@ class PipelineStatus:
     last_timestamp: str | None
 
 
+def compute_throughput(posts_df: pd.DataFrame, window_seconds: int = 60) -> float:
+    """Messages processed per second, based on timestamps in the last window."""
+    if posts_df is None or posts_df.empty or "timestamp_dt" not in posts_df:
+        return 0.0
+    now = pd.Timestamp.now(tz=posts_df["timestamp_dt"].dt.tz) if posts_df["timestamp_dt"].dt.tz else pd.Timestamp.now()
+    recent = posts_df.dropna(subset=["timestamp_dt"])
+    recent = recent[recent["timestamp_dt"] >= now - pd.Timedelta(seconds=window_seconds)]
+    return round(len(recent) / window_seconds, 3)
+
+
+def compute_latency(posts_df: pd.DataFrame) -> float | None:
+    """Average end-to-end latency (seconds) between a post being fetched and fully processed."""
+    if posts_df is None or posts_df.empty or "processed_at_dt" not in posts_df or "timestamp_dt" not in posts_df:
+        return None
+    valid = posts_df.dropna(subset=["processed_at_dt", "timestamp_dt"]).tail(50)
+    if valid.empty:
+        return None
+    latency = (valid["processed_at_dt"] - valid["timestamp_dt"]).dt.total_seconds()
+    return round(latency.mean(), 2)
+
+
+def get_kafka_lag(topic: str = "hn-posts", group_id: str = "pulselite-processor",
+                   bootstrap: str = "localhost:9092") -> int | None:
+    """Real Kafka consumer lag: how many unprocessed messages sit behind the processor."""
+    if DEMO_MODE:
+        return None
+    try:
+        from confluent_kafka import Consumer, TopicPartition
+        from confluent_kafka.admin import AdminClient
+
+        admin = AdminClient({"bootstrap.servers": bootstrap})
+        cluster_md = admin.list_topics(topic=topic, timeout=5)
+        if topic not in cluster_md.topics:
+            return None
+        partitions = list(cluster_md.topics[topic].partitions.keys())
+
+        consumer = Consumer({
+            "bootstrap.servers": bootstrap,
+            "group.id": group_id,
+            "enable.auto.commit": False,
+        })
+
+        tps = [TopicPartition(topic, p) for p in partitions]
+        committed = consumer.committed(tps, timeout=5)
+
+        total_lag = 0
+        for tp in committed:
+            low, high = consumer.get_watermark_offsets(tp, timeout=5, cached=False)
+            current = tp.offset if tp.offset is not None and tp.offset >= 0 else low
+            total_lag += max(0, high - current)
+
+        consumer.close()
+        return total_lag
+    except Exception:
+        return None    
+
+
 def pipeline_status(posts_df: pd.DataFrame) -> PipelineStatus:
     if posts_df is None or posts_df.empty or "timestamp_dt" not in posts_df:
         return PipelineStatus("NO DATA", "offline", None, None)
@@ -511,7 +570,8 @@ def pipeline_status(posts_df: pd.DataFrame) -> PipelineStatus:
     if valid.empty:
         return PipelineStatus("NO DATA", "offline", None, None)
     latest = valid["timestamp_dt"].max()
-    delta_minutes = (datetime.now() - latest.to_pydatetime()).total_seconds() / 60
+    now = datetime.now(latest.to_pydatetime().tzinfo) if latest.to_pydatetime().tzinfo else datetime.now()
+    delta_minutes = (now - latest.to_pydatetime()).total_seconds() / 60
     if delta_minutes <= FRESHNESS_LIVE_MINUTES:
         return PipelineStatus("LIVE", "live", round(delta_minutes, 1), str(latest))
     if delta_minutes <= FRESHNESS_IDLE_MINUTES:
@@ -1767,6 +1827,26 @@ def _render_live_dashboard() -> None:
                 [{"table": k, "rows": v} for k, v in table_counts.items()]
             )
             st.dataframe(counts_df, use_container_width=True, hide_index=True)
+            st.write("")
+            st.markdown(section_title("⚡", "Throughput & Latency"), unsafe_allow_html=True)
+            m1, m2, m3 = st.columns(3)
+
+            with m1:
+                lag = get_kafka_lag()
+                lag_display = "N/A (Demo Mode)" if DEMO_MODE else (str(lag) if lag is not None else "Unavailable")
+                st.metric("Consumer Lag", lag_display)
+                st.caption("Messages waiting to be processed")
+
+            with m2:
+                throughput = compute_throughput(posts_all)
+                st.metric("Throughput", f"{throughput} msgs/sec")
+                st.caption("Based on the last 60 seconds")
+
+            with m3:
+                latency = compute_latency(posts_all)
+                latency_display = f"{latency}s" if latency is not None else "N/A"
+                st.metric("End-to-End Latency", latency_display)
+                st.caption("Avg time from fetch to fully processed")
 
         st.write("")
         st.markdown(section_title("🧪", "Data Quality"), unsafe_allow_html=True)
