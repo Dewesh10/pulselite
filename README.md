@@ -1,6 +1,7 @@
 # PulseLite 🔴
 
 ![CI](https://github.com/Dewesh10/pulselite/actions/workflows/test.yml/badge.svg)
+🎥 **Demo Video:** https://www.loom.com/share/49aea0867fb841a2821d82f7d3bd87e4
 
 🌐 **Live Demo:** https://pulselite-dewesh.streamlit.app *(runs in Demo Mode — see note below)*
 
