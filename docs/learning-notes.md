@@ -61,4 +61,23 @@ Verify Docker image names on Docker Hub before writing docker-compose.yml
 Read the error message fully before panicking — most errors tell you exactly what's wrong
 
 
+Week 4 — Reliability, and Learning to Trust But Verify
+
+Kafka Auto-Commit — The Silent Data Loss Trap
+Going in, I assumed Kafka just "handles" offset tracking for you automatically, and that's basically true — until you actually think about what "automatically" means. Auto-commit fires on a timer, not based on whether your code actually finished processing a message. So if the processor crashes between an auto-commit and finishing its work, that message is gone — Kafka thinks you've already handled it, even though you haven't.
+
+The fix was switching to manual commits — only telling Kafka "I'm done with this message" after it's actually fully processed and saved. I proved this actually works by literally force-killing the processor mid-run (Stop-Process -Force, not a graceful Ctrl+C) and watching it restart and pick up exactly where it left off, with nothing lost or duplicated. That test taught me more about Kafka than any explanation could have — seeing it recover live made the concept real instead of theoretical.
+
+Timezones — A Bug That Waited Three Weeks to Show Up
+I had one timestamp using datetime.now() (my local time, no timezone label) and another using datetime.utcnow() (UTC, also no label). Both worked fine for weeks. Then I added a feature that compared the two directly, and got:
+can't subtract offset-naive and offset-aware datetimes
+The lesson: code that "works" isn't the same as code that's correct. A bug can sit completely silent until the exact right combination of circumstances triggers it.
+
+Kafka's Weird Startup Failures Are Normal
+More than once, Kafka refused to start after I closed a terminal the wrong way or my laptop slept mid-run, throwing a Zookeeper error about a broker ID conflict. First time, I assumed I'd broken something. Turns out this is a known, common issue — the fix is always docker-compose down -v then docker-compose up -d again. Lesson: when a tool fails in a weird way, check if it's a known quirk before assuming you broke it.
+
+Process Matters Too, Not Just Code
+I realized partway through that I hadn't been filing the weekly GitHub Issue check-ins the internship program expects — I was heads-down on the actual build and the process side slipped. Caught up by filing all four weeks honestly, clearly marked as retrospective, with real dates pulled from my actual commit history rather than pretending they were on time. Lesson: being behind on process and being honest about it is a lot better than staying quiet and hoping nobody checks.
+
+
 Written by Dewesh | B.Tech CSE-AIDE | June 2026
